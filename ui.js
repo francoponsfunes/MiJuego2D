@@ -86,10 +86,49 @@ function drawVictory() {
     ctx.font = "25px Arial";
 
     ctx.fillText(
-        "Derrotaste a CUA CUA 🦆",
+        levelHasPharmacy()
+            ? "Conseguiste el CORAZÓN BRILLANTE"
+            : "Derrotaste a CUA CUA 🦆",
         canvas.width / 2,
         canvas.height / 2 + 55
     );
 
     ctx.textAlign = "left";
+}
+
+
+// ============================================================================
+// AVISO DE FARMACIA DESBLOQUEADA
+// ============================================================================
+
+function drawPharmacyUnlockNotice() {
+
+    if (
+        performance.now() >=
+        pharmacyUnlockNoticeUntil
+    ) {
+        return;
+    }
+
+    ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
+    ctx.fillRect(
+        canvas.width / 2 - 190,
+        canvas.height - 88,
+        380,
+        48
+    );
+
+    ctx.fillStyle = "rgba(255, 245, 150, 1)";
+    ctx.font = "bold 22px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    ctx.fillText(
+        "FARMACIA DESBLOQUEADA",
+        canvas.width / 2,
+        canvas.height - 64
+    );
+
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
 }

@@ -16,8 +16,7 @@ function checkBulletCollisions() {
         bulletIndex--
     ) {
 
-        const bullet =
-            bullets[bulletIndex];
+        const bullet = bullets[bulletIndex];
 
         for (
             let enemyIndex = enemies.length - 1;
@@ -25,208 +24,143 @@ function checkBulletCollisions() {
             enemyIndex--
         ) {
 
-            const enemy =
-                enemies[enemyIndex];
+            const enemy = enemies[enemyIndex];
 
-            const colliding =
+            if (
                 bullet.x < enemy.x + enemy.width &&
                 bullet.x + bullet.width > enemy.x &&
                 bullet.y < enemy.y + enemy.height &&
-                bullet.y + bullet.height > enemy.y;
-
-            if (!colliding) {
-                continue;
-            }
-
-
-            // ================================================================
-            // DAÑO
-            // ================================================================
-
-            enemy.health--;
-
-
-            // ================================================================
-            // DOCTOR: GENERAR ENFERMERAS
-            // ================================================================
-
-            if (
-                enemy.type === "doctor" &&
-                enemy.health <= 8 &&
-                !enemy.nursesSpawned
+                bullet.y + bullet.height > enemy.y
             ) {
 
-                enemy.nursesSpawned = true;
+                // Daño
+                enemy.health--;
 
-                spawnNurses(enemy);
+                // ============================================================
+                // DOCTOR - GENERAR ENFERMERAS
+                // ============================================================
+
+                if (
+                    enemy.type === "doctor" &&
+                    enemy.health <= 8 &&
+                    !enemy.nursesSpawned
+                ) {
+
+                    enemy.nursesSpawned = true;
+
+                    spawnNurses(enemy);
+                }
+
+
+                // ============================================================
+                // KNOCKBACK
+                // ============================================================
+
+                applyEnemyKnockback(enemy, bullet);
+
+
+                // La bala desaparece
+                bullets.splice(bulletIndex, 1);
+
+
+                // ============================================================
+                // ENEMIGO MUERTO
+                // ============================================================
+
+                if (enemy.health <= 0) {
+
+                    const dropX = enemy.x;
+                    const dropY = enemy.y;
+                    const enemyType = enemy.type;
+
+                    enemies.splice(enemyIndex, 1);
+
+
+                    // ========================================================
+                    // DROP DEL DOCTOR
+                    // ========================================================
+
+                   if (
+                        isCurrentRoomType("doctor") &&
+                        enemyType === "doctor"
+                    ) {
+
+                        dropKey(
+                            dropX + 10,
+                            dropY + 10
+                        );
+
+                        dropHalfHeart(
+                            dropX + 35,
+                            dropY + 10
+                        );
+                    }
+
+
+                    // ========================================================
+                    // DROP DEL TRAUMATÓLOGO
+                    // ========================================================
+
+                    if (
+                        isCurrentRoomType("trauma") &&
+                        enemyType === "traumatologist"
+                    ) {
+
+                        dropKey(
+                            dropX + 5,
+                            dropY + 10
+                        );
+
+                        dropFullHeart(
+                            dropX + 35,
+                            dropY + 10
+                        );
+                    }
+
+
+                    // ========================================================
+                    // DROP DEL DIRECTOR
+                    // ========================================================
+
+                    if (
+                        isCurrentRoomType("director") &&
+                        enemyType === "director"
+                    ) {
+
+                        dropKey(
+                            dropX + 5,
+                            dropY + 10
+                        );
+
+                        dropFullHeart(
+                            dropX + 35,
+                            dropY + 10
+                        );
+                    }
+
+
+                    // ========================================================
+                    // SALA COMPLETADA
+                    // ========================================================
+
+                    if (
+                        !isCurrentRoomType("boss") &&
+                        enemies.length === 0 &&
+                        !rooms[currentRoom].cleared
+                    ) {
+
+                        rooms[currentRoom].cleared = true;
+                    }
+                }
+
+                // Una bala solo golpea una vez
+                break;
             }
-
-
-            // ================================================================
-            // KNOCKBACK
-            // ================================================================
-
-            applyEnemyKnockback(
-                enemy,
-                bullet
-            );
-
-
-            // La bala desaparece.
-            bullets.splice(
-                bulletIndex,
-                1
-            );
-
-
-            // ================================================================
-            // ENEMIGO DERROTADO
-            // ================================================================
-
-            if (enemy.health <= 0) {
-
-                const dropX =
-                    enemy.x;
-
-                const dropY =
-                    enemy.y;
-
-                const enemyType =
-                    enemy.type;
-
-                enemies.splice(
-                    enemyIndex,
-                    1
-                );
-
-
-                // ============================================================
-                // DROP DEL DOCTOR
-                // ============================================================
-
-                if (
-                    currentRoom === 2 &&
-                    enemyType === "doctor"
-                ) {
-
-                    dropKey(
-                        dropX + 10,
-                        dropY + 10
-                    );
-
-                    dropHalfHeart(
-                        dropX + 35,
-                        dropY + 10
-                    );
-                }
-
-
-                // ============================================================
-                // DROP DEL TRAUMATÓLOGO
-                // ============================================================
-
-                if (
-                    currentRoom === 3 &&
-                    enemyType === "traumatologist"
-                ) {
-
-                    dropKey(
-                        dropX + 5,
-                        dropY + 10
-                    );
-
-                    dropFullHeart(
-                        dropX + 35,
-                        dropY + 10
-                    );
-                }
-
-
-                // ============================================================
-                // DROP DEL DIRECTOR
-                // ============================================================
-
-                if (
-                    currentRoom === 4 &&
-                    enemyType === "director"
-                ) {
-                    // La Inspección castiga quedarse dentro de la zona.
-if (
-    enemy.pressureState === "active" &&
-    !enemy.pressureHit
-) {
-
-    const playerCenterX =
-        player.x + player.width / 2;
-
-    const playerCenterY =
-        player.y + player.height / 2;
-
-    const pressureDx =
-        playerCenterX -
-        enemy.pressureTargetX;
-
-    const pressureDy =
-        playerCenterY -
-        enemy.pressureTargetY;
-
-    const pressureDistance =
-        Math.sqrt(
-            pressureDx * pressureDx +
-            pressureDy * pressureDy
-        );
-
-    if (
-        pressureDistance <=
-        enemy.pressureRadius
-    ) {
-
-        enemy.pressureHit =
-            true;
-
-        damagePlayer(
-            0.5,
-            enemy.pressureTargetX,
-            enemy.pressureTargetY,
-            8
-        );
-    }
-}
-
-                    dropKey(
-                        dropX + 5,
-                        dropY + 10
-                    );
-
-                    dropFullHeart(
-                        dropX + 35,
-                        dropY + 10
-                    );
-                }
-
-
-                // ============================================================
-                // SALA NORMAL COMPLETADA
-                // La Sala 5 solamente se completa al vencer a Cua Cua.
-                // ============================================================
-
-                if (
-                    currentRoom < 5 &&
-                    enemies.length === 0 &&
-                    !rooms[currentRoom].cleared
-                ) {
-
-                    rooms[currentRoom].cleared =
-                        true;
-                }
-            }
-
-
-            // Una bala solo golpea una vez.
-            break;
         }
     }
 }
+
+
 // ============================================================================
 // COLISIÓN ENTRE ENEMIGOS
 // ============================================================================
@@ -444,6 +378,24 @@ function resolveDroppedItemCollisions() {
     });
 
 
+    // Drops del jefe
+    droppedBossItems.forEach((item) => {
+
+        items.push({
+            object: item
+        });
+    });
+
+
+    // Corazones Brillantes
+    droppedBrightHearts.forEach((heart) => {
+
+        items.push({
+            object: heart
+        });
+    });
+
+
     // Comparar cada objeto con los demás
     for (let i = 0; i < items.length; i++) {
 
@@ -559,68 +511,219 @@ function resolveDroppedItemCollisions() {
 // ============================================================================
 // KNOCKBACK DEL ENEMIGO
 // ============================================================================
-
 function applyEnemyKnockback(enemy, bullet) {
 
-    // Los ataques comprometidos de Sala 3 no se cancelan
-    // simplemente disparándoles. Siguen recibiendo daño,
-    // pero el jugador tiene que respetar y esquivar el ataque.
-    const committedAttack =
-        currentRoom === 3 &&
+    // ========================================================================
+    // ATAQUES COMPROMETIDOS DE LA SALA 3
+    // ========================================================================
+
+    const committedTraumaAttack =
+
+        isCurrentRoomType("trauma") &&
+
         (
+
             (
+
                 enemy.type === "anesthesiologist" &&
+
                 (
+
                     enemy.anesthesiologistState === "windup" ||
+
                     enemy.anesthesiologistState === "fakeout" ||
+
                     enemy.anesthesiologistState === "dash"
+
                 )
+
             ) ||
+
             (
+
                 enemy.type === "traumatologist" &&
+
                 (
+
                     enemy.traumaState === "chargeWindup" ||
+
                     enemy.traumaState === "charge" ||
+
                     enemy.traumaState === "slamWindup" ||
+
                     enemy.traumaState === "slamActive"
+
                 )
+
             )
+
         );
 
 
-    if (committedAttack) {
+    // ========================================================================
+    // ATAQUES DEL CRUCE CENTRAL
+    // ========================================================================
+
+    const committedJunctionAttack =
+
+        isCurrentRoomType("junction") &&
+
+        enemy.type === "leper" &&
+
+        enemy.junctionAmbusher &&
+
+        (
+
+            enemy.leperState === "windup" ||
+
+            enemy.leperState === "rush"
+
+        );
+
+
+    // ========================================================================
+    // ATAQUES DE LA SALA DE ANESTESIA
+    // ========================================================================
+
+    const committedAnesthesiaPreparationAttack =
+
+        isCurrentRoomType("anesthesiaPreparation") &&
+
+        enemy.type === "anesthesiologist" &&
+
+        enemy.preparationAnesthesiologist &&
+
+        (
+
+            enemy.preparationState === "dashWindup" ||
+
+            enemy.preparationState === "dash"
+
+        );
+
+
+    // ========================================================================
+    // ATAQUES DE PREPARACIÓN QUIRÚRGICA
+    // ========================================================================
+
+    const committedSurgicalPreparationAttack =
+
+        isCurrentRoomType("surgicalPreparation") &&
+
+        (
+
+            // ================================================================
+            // CIRUJANO APUNTANDO
+            // ================================================================
+
+            (
+
+                enemy.surgicalPreparationSurgeon &&
+
+                enemy.surgicalState === "aim"
+
+            ) ||
+
+            // ================================================================
+            // ENFERMERA PREPARANDO O EJECUTANDO SU EMBESTIDA
+            // ================================================================
+
+            (
+
+                enemy.surgicalPreparationNurse &&
+
+                (
+
+                    enemy.nurseState === "windup" ||
+
+                    enemy.nurseState === "rush"
+
+                )
+
+            )
+
+        );
+
+
+    // ========================================================================
+    // CONSERVAR EL ATAQUE, PERO RECIBIR EL DAÑO DE LA BALA
+    // ========================================================================
+
+    if (
+
+        committedTraumaAttack ||
+
+        committedJunctionAttack ||
+
+        committedAnesthesiaPreparationAttack ||
+
+        committedSurgicalPreparationAttack
+
+    ) {
+
         return;
     }
 
 
-    const force = 8;
+    // ========================================================================
+    // KNOCKBACK NORMAL
+    // ========================================================================
+
+    const force =
+        8;
 
 
-    if (bullet.direction === "ArrowRight") {
+    if (
+        bullet.direction === "ArrowRight"
+    ) {
 
-        enemy.knockbackX = force;
-        enemy.knockbackY = 0;
+        enemy.knockbackX =
+            force;
+
+
+        enemy.knockbackY =
+            0;
     }
 
-    else if (bullet.direction === "ArrowLeft") {
 
-        enemy.knockbackX = -force;
-        enemy.knockbackY = 0;
+    else if (
+        bullet.direction === "ArrowLeft"
+    ) {
+
+        enemy.knockbackX =
+            -force;
+
+
+        enemy.knockbackY =
+            0;
     }
 
-    else if (bullet.direction === "ArrowUp") {
 
-        enemy.knockbackX = 0;
-        enemy.knockbackY = -force;
+    else if (
+        bullet.direction === "ArrowUp"
+    ) {
+
+        enemy.knockbackX =
+            0;
+
+
+        enemy.knockbackY =
+            -force;
     }
 
-    else if (bullet.direction === "ArrowDown") {
 
-        enemy.knockbackX = 0;
-        enemy.knockbackY = force;
+    else if (
+        bullet.direction === "ArrowDown"
+    ) {
+
+        enemy.knockbackX =
+            0;
+
+
+        enemy.knockbackY =
+            force;
     }
 }
-
 function checkPlayerDamage() {
 
     if (gameOver || victory) {
@@ -643,76 +746,91 @@ function checkPlayerDamage() {
 
         if (enemy.type === "anesthesiologist") {
 
-    // ================================================================
-    // ANESTESIÓLOGO DE SALA 3
-    // ================================================================
 
-    if (currentRoom === 3) {
+            // ================================================================
+            // ANESTESIÓLOGO DE SALA 3
+            // ================================================================
 
-        if (
-            colliding &&
-            enemy.anesthesiologistState === "dash" &&
-            !enemy.anesthesiaUsedThisDash
-        ) {
+            if (isCurrentRoomType("trauma")) {
 
-            enemy.anesthesiaUsedThisDash =
-                true;
+                if (
+                    colliding &&
+                    enemy.anesthesiologistState === "dash" &&
+                    !enemy.anesthesiaUsedThisDash
+                ) {
 
-            movementDisabledUntil =
-                Math.max(
-                    movementDisabledUntil,
-                    performance.now() + 700
-                );
+                    enemy.anesthesiaUsedThisDash =
+                        true;
 
-            enemy.anesthesiologistState =
-                "retreat";
 
-            enemy.stateTimer =
-                enemy.retreatDuration;
+                    // Anestesia:
+                    // castiga la esquiva fallida sin quitar vida.
+                    movementDisabledUntil =
+                        Math.max(
+                            movementDisabledUntil,
+                            performance.now() + 700
+                        );
+
+
+                    // Si acierta, entra y sale:
+                    // no se queda pegado al jugador.
+                    enemy.anesthesiologistState =
+                        "retreat";
+
+                    enemy.stateTimer =
+                        enemy.retreatDuration;
+                }
+
+
+                return;
+            }
+
+
+            // ================================================================
+            // ANESTESIÓLOGOS ASISTENTES DE CUA CUA
+            // Solo anestesian durante su entrada anunciada.
+            // ================================================================
+
+            if (
+                enemy.bossAssistant &&
+                colliding &&
+                enemy.anesthesiologistState === "dash" &&
+                !enemy.anesthesiaUsedThisDash
+            ) {
+
+                enemy.anesthesiaUsedThisDash =
+                    true;
+
+                const now =
+                    performance.now();
+
+                // Inmunidad compartida: dos asistentes nunca pueden
+                // encadenar anestesia sobre el jugador.
+                if (
+                    now >=
+                    boss.anesthesiaImmunityUntil
+                ) {
+
+                    movementDisabledUntil =
+                        Math.max(
+                            movementDisabledUntil,
+                            now + 450
+                        );
+
+                    boss.anesthesiaImmunityUntil =
+                        now + 1400;
+                }
+
+                // Acierta o falla: después de una entrada debe regresar.
+                enemy.anesthesiologistState =
+                    "return";
+            }
+
+
+            return;
         }
 
-        return;
-    }
 
-
-    // ================================================================
-    // ANESTESIÓLOGOS ASISTENTES DE CUA CUA
-    // ================================================================
-
-    if (
-        enemy.bossAssistant &&
-        colliding &&
-        enemy.anesthesiologistState === "dash" &&
-        !enemy.anesthesiaUsedThisDash
-    ) {
-
-        enemy.anesthesiaUsedThisDash =
-            true;
-
-        const now =
-            performance.now();
-
-        if (
-            now >=
-            boss.anesthesiaImmunityUntil
-        ) {
-
-            movementDisabledUntil =
-                Math.max(
-                    movementDisabledUntil,
-                    now + 450
-                );
-
-            boss.anesthesiaImmunityUntil =
-                now + 1400;
-        }
-
-        enemy.anesthesiologistState =
-            "return";
-    }
-
-    return;
-}
         // ====================================================================
         // TRAUMATÓLOGO
         // ====================================================================
@@ -825,6 +943,47 @@ function checkPlayerDamage() {
         // ====================================================================
 
         if (enemy.type === "director") {
+
+            // La Inspección castiga quedarse dentro de la zona marcada.
+            if (
+                enemy.pressureState === "active" &&
+                !enemy.pressureHit
+            ) {
+
+                const playerCenterX =
+                    player.x + player.width / 2;
+
+                const playerCenterY =
+                    player.y + player.height / 2;
+
+                const pressureDx =
+                    playerCenterX - enemy.pressureTargetX;
+
+                const pressureDy =
+                    playerCenterY - enemy.pressureTargetY;
+
+                const pressureDistance =
+                    Math.sqrt(
+                        pressureDx * pressureDx +
+                        pressureDy * pressureDy
+                    );
+
+                if (
+                    pressureDistance <=
+                    enemy.pressureRadius
+                ) {
+
+                    enemy.pressureHit =
+                        true;
+
+                    damagePlayer(
+                        0.5,
+                        enemy.pressureTargetX,
+                        enemy.pressureTargetY,
+                        8
+                    );
+                }
+            }
 
             // La carga es su golpe fuerte y está anunciada visualmente.
             if (

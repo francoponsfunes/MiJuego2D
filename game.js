@@ -20,9 +20,11 @@ function restartGame() {
     droppedKeys.length = 0;
     droppedHalfHearts.length = 0;
     droppedBossItems.length = 0;
+    droppedBrightHearts.length = 0;
 
     bullets.length = 0;
     enemyProjectiles.length = 0;
+    bossProjectiles.length = 0;
 
 
     // ========================================================================
@@ -35,13 +37,16 @@ function restartGame() {
     player.y =
         canvas.height / 2 - 20;
 
-    playerHealth = 3;
+    playerMaxHealth = 3;
+    playerHealth = playerMaxHealth;
     playerKeys = 0;
-playerKnockbackX = 0;
-playerKnockbackY = 0;
+    brightHeartsCollected = 0;
 
-invulnerableUntil = 0;
-movementDisabledUntil = 0;
+    playerKnockbackX = 0;
+    playerKnockbackY = 0;
+
+    invulnerableUntil = 0;
+    movementDisabledUntil = 0;
     
 
 
@@ -55,21 +60,7 @@ movementDisabledUntil = 0;
 
     bossDoorUnlocked = false;
 
-    currentRoom = 1;
-    changingRoom = false;
-
-
-    // ========================================================================
-    // HABITACIONES
-    // ========================================================================
-
-    for (let roomNumber = 1; roomNumber <= 5; roomNumber++) {
-
-        rooms[roomNumber].cleared = false;
-
-        rooms[roomNumber].visited =
-            roomNumber === 1;
-    }
+    resetRoomsForNewRun();
 
 
     // ========================================================================
@@ -89,19 +80,22 @@ movementDisabledUntil = 0;
 
     boss.health =
         boss.maxHealth;
-        boss.assistantCommandTimer = 90;
-boss.assistantTurn = 0;
-boss.anesthesiaImmunityUntil = 0;
-boss.attackSequence = 0;
+
+    boss.assistantCommandTimer = 90;
+    boss.assistantTurn = 0;
+    boss.anesthesiaImmunityUntil = 0;
+    boss.attackSequence = 0;
 
 
     // ========================================================================
     // GENERAR SALA INICIAL
     // ========================================================================
 
-    spawnEnemies(
-        rooms[1].enemyCount
-    );
+    if (!rooms[currentRoom].cleared) {
+        spawnEnemies(
+            rooms[currentRoom].enemyCount
+        );
+    }
 }
 // ============================================================================
 // GAME LOOP
@@ -109,17 +103,27 @@ boss.attackSequence = 0;
 
 let lastTime = 0;
 
-
 function gameLoop(currentTime) {
 
     const deltaTime = lastTime
-        ? (currentTime - lastTime) / 16.67
+
+        ? Math.min(
+            3,
+            Math.max(
+                0,
+                (currentTime - lastTime) / 16.67
+            )
+        )
+
         : 1;
 
     lastTime = currentTime;
 
 
-    // Limpiar pantalla
+    // ========================================================================
+    // LIMPIAR PANTALLA
+    // ========================================================================
+
     ctx.clearRect(
         0,
         0,
@@ -129,49 +133,90 @@ function gameLoop(currentTime) {
 
 
     // ========================================================================
-    // UPDATE
+    // ACTUALIZACIÓN
     // ========================================================================
 
     if (!gameOver) {
 
-        // Jugador
-        updatePlayer();
+
+        // ====================================================================
+        // JUGADOR
+        // ====================================================================
+
+        updatePlayer(deltaTime);
 
 
-        // Proyectiles
-        updateBullets();
-        updateEnemyProjectiles(deltaTime);
-        updateBossProjectiles(deltaTime);
+        // ====================================================================
+        // PROYECTILES
+        // ====================================================================
+
+        updateBullets(deltaTime);
+
+        updateEnemyProjectiles(
+            deltaTime
+        );
+
+        updateBossProjectiles(
+            deltaTime
+        );
 
 
-        // Enemigos y boss
-        updateEnemies(deltaTime);
-        updateBoss(deltaTime);
+        // ====================================================================
+        // ENEMIGOS Y BOSS
+        // ====================================================================
+
+        updateEnemies(
+            deltaTime
+        );
+
+        updateBoss(
+            deltaTime
+        );
 
 
-        // Colisiones físicas
+        // ====================================================================
+        // COLISIONES FÍSICAS
+        // ====================================================================
+
         resolveEnemyCollisions();
+
         resolveDroppedItemCollisions();
 
 
-        // Combate
+        // ====================================================================
+        // COMBATE
+        // ====================================================================
+
         checkBulletCollisions();
+
         checkBossCollision();
 
         checkPlayerDamage();
 
         checkEnemyProjectileCollisions();
+
         checkBossProjectileCollisions();
 
 
-        // Items
+        // ====================================================================
+        // OBJETOS
+        // ====================================================================
+
         checkKeyPickup();
+
         checkHalfHeartPickup();
+
         checkBossDropPickup();
 
+        checkBrightHeartPickup();
 
-        // Salas
+
+        // ====================================================================
+        // SALAS
+        // ====================================================================
+
         checkRoomClear();
+
         checkRoomChange();
     }
 
@@ -181,6 +226,7 @@ function gameLoop(currentTime) {
     // ========================================================================
 
     updateDoors();
+
     drawRoom();
 
 
@@ -189,7 +235,9 @@ function gameLoop(currentTime) {
     // ========================================================================
 
     drawPlayer();
+
     drawEnemies();
+
     drawBoss();
 
 
@@ -198,17 +246,23 @@ function gameLoop(currentTime) {
     // ========================================================================
 
     drawBullets();
+
     drawEnemyProjectiles();
+
     drawBossProjectiles();
 
 
     // ========================================================================
-    // ITEMS
+    // OBJETOS
     // ========================================================================
 
     drawDroppedKeys();
+
     drawDroppedHalfHearts();
+
     drawBossDrops();
+
+    drawBrightHearts();
 
 
     // ========================================================================
@@ -216,12 +270,16 @@ function gameLoop(currentTime) {
     // ========================================================================
 
     drawHealth();
+
     drawKeys();
 
     drawBossHealth();
 
     drawRoomInfo();
+
     drawMinimap();
+
+    drawPharmacyUnlockNotice();
 
 
     // ========================================================================
@@ -229,10 +287,13 @@ function gameLoop(currentTime) {
     // ========================================================================
 
     drawGameOver();
+
     drawVictory();
 
 
-    requestAnimationFrame(gameLoop);
+    requestAnimationFrame(
+        gameLoop
+    );
 }
 
 

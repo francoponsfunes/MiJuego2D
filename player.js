@@ -15,13 +15,14 @@ const player = {
 // BALANCE DE MOVIMIENTO
 // ============================================================================
 
-const PLAYER_SPEED_MULTIPLIER = 0.65;
+const PLAYER_SPEED_MULTIPLIER = 0.72;
 
 // ============================================================================
 // VIDA Y ESTADOS DEL JUGADOR
 // ============================================================================
 
-let playerHealth = 3;
+let playerMaxHealth = 3;
+let playerHealth = playerMaxHealth;
 let movementDisabledUntil = 0;
 let invulnerableUntil = 0;
 let playerKnockbackX = 0;
@@ -93,9 +94,7 @@ function shoot(direction) {
         canShoot = true;
     }, shootCooldown);
 }
-
-
-function updatePlayer() {
+function updatePlayer(deltaTime = 1) {
 
     const movementDisabled =
         performance.now() < movementDisabledUntil;
@@ -105,46 +104,46 @@ function updatePlayer() {
     // MOVIMIENTO NORMAL
     // ========================================================================
 
-    // ========================================================================
-// MOVIMIENTO NORMAL
-// ========================================================================
+    const movementSpeed =
+        player.speed *
+        PLAYER_SPEED_MULTIPLIER *
+        deltaTime;
 
-const movementSpeed =
-    player.speed *
-    PLAYER_SPEED_MULTIPLIER;
+    if (!movementDisabled) {
 
+        if (keys["w"]) {
+            player.y -= movementSpeed;
+        }
 
-if (!movementDisabled) {
+        if (keys["s"]) {
+            player.y += movementSpeed;
+        }
 
-    if (keys["w"]) {
-        player.y -= movementSpeed;
+        if (keys["a"]) {
+            player.x -= movementSpeed;
+        }
+
+        if (keys["d"]) {
+            player.x += movementSpeed;
+        }
     }
 
-    if (keys["s"]) {
-        player.y += movementSpeed;
-    }
-
-    if (keys["a"]) {
-        player.x -= movementSpeed;
-    }
-
-    if (keys["d"]) {
-        player.x += movementSpeed;
-    }
-}
 
     // ========================================================================
     // KNOCKBACK
     // ========================================================================
 
-    player.x += playerKnockbackX;
-    player.y += playerKnockbackY;
+    player.x += playerKnockbackX * deltaTime;
+    player.y += playerKnockbackY * deltaTime;
 
-    playerKnockbackX *= 0.82;
-    playerKnockbackY *= 0.82;
+    const knockbackDamping =
+        Math.pow(0.82, deltaTime);
+
+    playerKnockbackX *= knockbackDamping;
+    playerKnockbackY *= knockbackDamping;
 
 
-    // Cortar valores casi invisibles
+    // Cortar valores casi invisibles.
     if (Math.abs(playerKnockbackX) < 0.05) {
         playerKnockbackX = 0;
     }
@@ -159,11 +158,13 @@ if (!movementDisabled) {
     // ========================================================================
 
     if (player.x < 0) {
+
         player.x = 0;
         playerKnockbackX = 0;
     }
 
     if (player.y < 0) {
+
         player.y = 0;
         playerKnockbackY = 0;
     }
@@ -215,12 +216,11 @@ function drawPlayer() {
 
 function drawHealth() {
 
-    const maxHealth = 3;
     const heartSize = 28;
     const startX = 20;
     const startY = 28;
 
-    for (let i = 0; i < maxHealth; i++) {
+    for (let i = 0; i < playerMaxHealth; i++) {
 
         const heartX = startX + i * heartSize;
 

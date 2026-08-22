@@ -34,24 +34,33 @@ const boss = {
 
     // Ataques
     attackTimer: 55,
-attackCooldown: 92,
-attackSequence: 0,
+    attackCooldown: 92,
+    attackSequence: 0,
 
 
     // Fases
     phase: 1,
 
-    
-
-
     spawned75: false,
-spawned50: false,
-spawned25: false,
+    spawned50: false,
+    spawned25: false,
 
-// Coordinación de los asistentes.
-assistantCommandTimer: 90,
-assistantTurn: 0,
-anesthesiaImmunityUntil: 0,
+    // Coordinación de sus dos asistentes.
+    assistantCommandTimer: 90,
+    assistantTurn: 0,
+    anesthesiaImmunityUntil: 0,
+
+
+    // Dash
+    dashTimer: 190,
+    dashDuration: 0,
+
+    dashX: 0,
+    dashY: 0,
+
+
+    // Estado
+    enraged: false
 };
 
 
@@ -116,9 +125,14 @@ function updateBoss(deltaTime) {
         spawnBossAnesthesiologists();
     }
 
-// Cua Cua coordina las entradas.
-// Nunca atacan los dos al mismo tiempo.
-updateBossAssistantCommands(deltaTime);
+
+    // Cua Cua decide cuándo entra cada asistente.
+    // Nunca atacan los dos al mismo tiempo.
+    updateBossAssistantCommands(
+        deltaTime
+    );
+
+
     // ========================================================================
     // VELOCIDAD SEGÚN FASE
     // ========================================================================
@@ -127,11 +141,11 @@ updateBossAssistantCommands(deltaTime);
 
     if (boss.phase === 1) {
 
-        movementSpeed = 1.2;
+        movementSpeed = 1.45;
 
     } else if (boss.phase === 2) {
 
-        movementSpeed = 1.5;
+        movementSpeed = 1.65;
 
     } else if (boss.phase === 3) {
 
@@ -236,11 +250,11 @@ updateBossAssistantCommands(deltaTime);
 
         if (boss.phase === 1) {
 
-            boss.attackTimer = 120;
+            boss.attackTimer = 92;
 
         } else if (boss.phase === 2) {
 
-            boss.attackTimer = 100;
+            boss.attackTimer = 86;
 
         } else if (boss.phase === 3) {
 
@@ -269,11 +283,11 @@ updateBossAssistantCommands(deltaTime);
 
         if (boss.phase === 1) {
 
-            boss.dashTimer = 360;
+            boss.dashTimer = 260;
 
         } else if (boss.phase === 2) {
 
-            boss.dashTimer = 300;
+            boss.dashTimer = 230;
 
         } else if (boss.phase === 3) {
 
@@ -315,8 +329,10 @@ function updateBossPhase() {
         boss.enraged = true;
     }
 }
+
+
 // ============================================================================
-// DISPARO EN ABANICO
+// ATAQUES SEGÚN FASE
 // ============================================================================
 
 function shootBossFan(
@@ -368,10 +384,6 @@ function shootBossFan(
 }
 
 
-// ============================================================================
-// ATAQUES SEGÚN FASE
-// ============================================================================
-
 function bossAttack() {
 
     const centerX =
@@ -383,7 +395,8 @@ function bossAttack() {
         boss.height / 2;
 
 
-    // Cada ataque prepara la entrada de un asistente.
+    // Cada ataque de Cua Cua prepara la siguiente entrada de un asistente.
+    // La demora separa ambas amenazas y deja tiempo para leerlas.
     const hasAssistant =
         enemies.some((enemy) =>
             enemy.type === "anesthesiologist" &&
@@ -403,12 +416,11 @@ function bossAttack() {
 
 
     // ========================================================================
-    // FASE 1 - PRECISIÓN Y ABANICO
+    // FASE 1 - PRECISIÓN / ABANICO CORTO
     // ========================================================================
 
     if (boss.phase === 1) {
 
-        // Alterna un disparo rápido con un abanico.
         if (boss.attackSequence % 2 === 1) {
 
             shootBossFan(
@@ -431,7 +443,7 @@ function bossAttack() {
 
 
     // ========================================================================
-    // FASE 2 - ABANICO Y PINZA
+    // FASE 2 - ABANICO / PINZA
     // ========================================================================
 
     if (boss.phase === 2) {
@@ -481,6 +493,7 @@ function bossAttack() {
                 i;
 
             shootBossProjectile(
+
                 centerX +
                     Math.cos(angle) *
                     100,
@@ -499,7 +512,7 @@ function bossAttack() {
 
 
     // ========================================================================
-    // FASE 4 - RADIAL Y DIRIGIDO
+    // FASE 4 - RADIAL + DIRIGIDO
     // ========================================================================
 
     const numberOfProjectiles = 10;
@@ -519,6 +532,7 @@ function bossAttack() {
             i;
 
         shootBossProjectile(
+
             centerX +
                 Math.cos(angle) *
                 100,
@@ -532,12 +546,15 @@ function bossAttack() {
         );
     }
 
+
     shootBossProjectile(
         player.x + player.width / 2,
         player.y + player.height / 2,
         5.5
     );
 }
+
+
 // ============================================================================
 // DASH
 // ============================================================================
@@ -572,6 +589,7 @@ function bossStartDash() {
 
 // ============================================================================
 // COORDINAR ANESTESIÓLOGOS DE CUA CUA
+// Cua Cua dispara y después habilita una entrada anunciada de un asistente.
 // ============================================================================
 
 function updateBossAssistantCommands(deltaTime) {
@@ -599,7 +617,7 @@ function updateBossAssistantCommands(deltaTime) {
             enemy.anesthesiologistState === "dash"
         );
 
-    // No se superpone con el dash ni con un ataque inminente de Cua Cua.
+    // Esperan a que termine la carga de Cua Cua y a que dispare.
     if (
         assistantAttacking ||
         boss.dashDuration > 0 ||
@@ -637,7 +655,6 @@ function updateBossAssistantCommands(deltaTime) {
     chosenAssistant.windupDuration =
         chosenAssistant.stateTimer;
 
-    // La posición queda fijada al comenzar el aviso.
     chosenAssistant.attackTargetX =
         player.x + player.width / 2;
 
@@ -652,7 +669,7 @@ function updateBossAssistantCommands(deltaTime) {
             ? 1
             : 0;
 
-    // Espera una nueva señal de Cua Cua.
+    // Después de esta entrada esperan una nueva señal de Cua Cua.
     boss.assistantCommandTimer =
         9999;
 }
@@ -660,6 +677,7 @@ function updateBossAssistantCommands(deltaTime) {
 
 // ============================================================================
 // GENERAR ANESTESIÓLOGOS DE CUA CUA
+// Como máximo existen dos; las fases posteriores solo reponen los ausentes.
 // ============================================================================
 
 function spawnBossAnesthesiologists() {
@@ -677,7 +695,6 @@ function spawnBossAnesthesiologists() {
             )
         );
 
-    // Siempre existen como máximo dos.
     for (let slot = 0; slot < 2; slot++) {
 
         if (occupiedSlots.has(slot)) {
@@ -746,7 +763,7 @@ function spawnBossAnesthesiologists() {
                     2.15,
 
                 returnSpeed:
-                    3,
+                    3.0,
 
                 dashSpeed:
                     5.35,
@@ -778,13 +795,15 @@ function spawnBossAnesthesiologists() {
         );
     }
 
-    // Esperan un poco antes de realizar la primera entrada.
+    // Tras aparecer, se colocan antes de iniciar la primera entrada.
     boss.assistantCommandTimer =
         Math.min(
             boss.assistantCommandTimer,
             48
         );
 }
+
+
 // ============================================================================
 // COLISIÓN BALA / CUA CUA
 // ============================================================================
@@ -833,22 +852,19 @@ function checkBossCollision() {
                     boss.defeated = true;
                     boss.active = false;
 
-                    rooms[5].cleared = true;
-                    // Retirar asistentes al terminar la pelea.
-for (
-    let enemyIndex = enemies.length - 1;
-    enemyIndex >= 0;
-    enemyIndex--
-) {
+                    rooms[getBossRoomId()].cleared = true;
 
-    if (enemies[enemyIndex].bossAssistant) {
+                    // Los asistentes dejan de participar al terminar la pelea.
+                    for (
+                        let enemyIndex = enemies.length - 1;
+                        enemyIndex >= 0;
+                        enemyIndex--
+                    ) {
 
-        enemies.splice(
-            enemyIndex,
-            1
-        );
-    }
-}
+                        if (enemies[enemyIndex].bossAssistant) {
+                            enemies.splice(enemyIndex, 1);
+                        }
+                    }
 
 
                     // ========================================================
@@ -870,8 +886,15 @@ for (
                         boss.y + boss.height / 2 - 10
                     );
 
+                    if (levelHasPharmacy()) {
 
-                    showVictory();
+                        pharmacyUnlockNoticeUntil =
+                            performance.now() + 3500;
+
+                    } else {
+
+                        showVictory();
+                    }
                 }
             }
         }

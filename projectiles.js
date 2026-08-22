@@ -14,40 +14,63 @@ const bullets = [];
 // ============================================================================
 // ACTUALIZAR BALAS DEL JUGADOR
 // ============================================================================
+function updateBullets(deltaTime = 1) {
 
-function updateBullets() {
+    for (
+        let bulletIndex = bullets.length - 1;
+        bulletIndex >= 0;
+        bulletIndex--
+    ) {
 
-    bullets.forEach((bullet, index) => {
+        const bullet = bullets[bulletIndex];
+
+        const movement =
+            bullet.speed * deltaTime;
+
+
+        // ====================================================================
+        // DIRECCIÓN DEL DISPARO
+        // ====================================================================
 
         if (bullet.direction === "ArrowUp") {
-            bullet.y -= bullet.speed;
+
+            bullet.y -= movement;
         }
 
         if (bullet.direction === "ArrowDown") {
-            bullet.y += bullet.speed;
+
+            bullet.y += movement;
         }
 
         if (bullet.direction === "ArrowLeft") {
-            bullet.x -= bullet.speed;
+
+            bullet.x -= movement;
         }
 
         if (bullet.direction === "ArrowRight") {
-            bullet.x += bullet.speed;
+
+            bullet.x += movement;
         }
 
-        // Eliminar disparos fuera de la habitación
+
+        // ====================================================================
+        // ELIMINAR DISPAROS FUERA DE LA HABITACIÓN
+        // ====================================================================
+
         if (
             bullet.x < -20 ||
             bullet.x > canvas.width + 20 ||
             bullet.y < -20 ||
             bullet.y > canvas.height + 20
         ) {
-            bullets.splice(index, 1);
+
+            bullets.splice(
+                bulletIndex,
+                1
+            );
         }
-    });
+    }
 }
-
-
 // ============================================================================
 // DIBUJAR BALAS DEL JUGADOR
 // ============================================================================
