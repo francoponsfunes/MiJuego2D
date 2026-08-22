@@ -1,85 +1,292 @@
 // ============================================================================
 // PROJECTILES.JS
-// Proyectiles del juego
-// ============================================================================
-
-
-// ============================================================================
-// BALAS DEL JUGADOR
+// Proyectiles del jugador, enemigos y jefe.
 // ============================================================================
 
 const bullets = [];
+const enemyProjectiles = [];
+const bossProjectiles = [];
 
+const PROJECTILE_DIRECTIONS = {
+    ArrowUp: { x: 0, y: -1 },
+    ArrowDown: { x: 0, y: 1 },
+    ArrowLeft: { x: -1, y: 0 },
+    ArrowRight: { x: 1, y: 0 }
+};
 
-// ============================================================================
-// ACTUALIZAR BALAS DEL JUGADOR
-// ============================================================================
-function updateBullets(deltaTime = 1) {
+function isOutsideCanvas(projectile, margin) {
+    return (
+        projectile.x < -margin ||
+        projectile.x > canvas.width + margin ||
+        projectile.y < -margin ||
+        projectile.y > canvas.height + margin
+    );
+}
 
-    for (
-        let bulletIndex = bullets.length - 1;
-        bulletIndex >= 0;
-        bulletIndex--
-    ) {
+function updateLinearProjectiles(projectiles, deltaTime, margin) {
+    for (let index = projectiles.length - 1; index >= 0; index--) {
+        const projectile = projectiles[index];
 
-        const bullet = bullets[bulletIndex];
+        projectile.x += projectile.vx * deltaTime;
+        projectile.y += projectile.vy * deltaTime;
 
-        const movement =
-            bullet.speed * deltaTime;
-
-
-        // ====================================================================
-        // DIRECCIÓN DEL DISPARO
-        // ====================================================================
-
-        if (bullet.direction === "ArrowUp") {
-
-            bullet.y -= movement;
-        }
-
-        if (bullet.direction === "ArrowDown") {
-
-            bullet.y += movement;
-        }
-
-        if (bullet.direction === "ArrowLeft") {
-
-            bullet.x -= movement;
-        }
-
-        if (bullet.direction === "ArrowRight") {
-
-            bullet.x += movement;
-        }
-
-
-        // ====================================================================
-        // ELIMINAR DISPAROS FUERA DE LA HABITACIÓN
-        // ====================================================================
-
-        if (
-            bullet.x < -20 ||
-            bullet.x > canvas.width + 20 ||
-            bullet.y < -20 ||
-            bullet.y > canvas.height + 20
-        ) {
-
-            bullets.splice(
-                bulletIndex,
-                1
-            );
+        if (isOutsideCanvas(projectile, margin)) {
+            projectiles.splice(index, 1);
         }
     }
 }
-// ============================================================================
-// DIBUJAR BALAS DEL JUGADOR
-// ============================================================================
+
+function checkProjectilePlayerCollisions(projectiles) {
+    for (let index = projectiles.length - 1; index >= 0; index--) {
+        const projectile = projectiles[index];
+
+        const colliding =
+            player.x < projectile.x + projectile.width &&
+            player.x + player.width > projectile.x &&
+            player.y < projectile.y + projectile.height &&
+            player.y + player.height > projectile.y;
+
+        if (!colliding) {
+            continue;
+        }
+
+        damagePlayerFromEntity(0.5, projectile);
+        projectiles.splice(index, 1);
+    }
+}
+
+function drawRectProjectiles(projectiles) {
+    projectiles.forEach((projectile) => {
+        ctx.fillStyle = "white";
+
+        ctx.fillRect(
+            projectile.x,
+            projectile.y,
+            projectile.width,
+            projectile.height
+        );
+    });
+}
+
+function launchBoomerang() {
+    if (gameOver || victory || playerBoomerangs <= 0) {
+        return false;
+    }
+
+    let aimX =
+        Number(Boolean(keys.d)) -
+        Number(Boolean(keys.a));
+
+    let aimY =
+        Number(Boolean(keys.s)) -
+        Number(Boolean(keys.w));
+
+    if (aimX === 0 && aimY === 0) {
+        const shootingX =
+            Number(Boolean(keys.arrowright)) -
+            Number(Boolean(keys.arrowleft));
+
+        const shootingY =
+            Number(Boolean(keys.arrowdown)) -
+            Number(Boolean(keys.arrowup));
+
+        if (shootingX !== 0 || shootingY !== 0) {
+            aimX = shootingX;
+            aimY = shootingY;
+
+        } else if (
+            Number.isFinite(player.boomerangAimX) &&
+            Number.isFinite(player.boomerangAimY) &&
+            (
+                player.boomerangAimX !== 0 ||
+                player.boomerangAimY !== 0
+            )
+        ) {
+            aimX = player.boomerangAimX;
+            aimY = player.boomerangAimY;
+
+        } else {
+            const fallbackAim =
+                PROJECTILE_DIRECTIONS[player.aimDirection] ||
+                PROJECTILE_DIRECTIONS[shootingDirection] ||
+                PROJECTILE_DIRECTIONS.ArrowUp;
+
+            aimX = fallbackAim.x;
+            aimY = fallbackAim.y;
+        }
+    }
+
+    const aimLength = Math.hypot(aimX, aimY);
+
+    if (aimLength === 0) {
+        return false;
+    }
+
+    aimX /= aimLength;
+    aimY /= aimLength;
+
+    player.boomerangAimX = aimX;
+    player.boomerangAimY = aimY;
+
+    const direction =
+        Math.abs(aimX) >= Math.abs(aimY)
+            ? aimX >= 0
+                ? "ArrowRight"
+                : "ArrowLeft"
+            : aimY >= 0
+                ? "ArrowDown"
+                : "ArrowUp";
+
+    const size = 24;
+    const speed = 9;
+
+    bullets.push({
+        type: "boomerang",
+
+        x: player.x + player.width / 2 - size / 2,
+        y: player.y + player.height / 2 - size / 2,
+
+        width: size,
+        height: size,
+
+        speed,
+        direction,
+
+        vx: aimX * speed,
+        vy: aimY * speed,
+
+        damage: 2,
+
+        bounces: 0,
+        maxBounces: 2,
+
+        rotation: 0,
+
+        hitEnemies: new Set(),
+        hitBoss: false
+    });
+
+    playerBoomerangs--;
+
+    return true;
+}
+
+function updateBullets(deltaTime = 1) {
+    for (let index = bullets.length - 1; index >= 0; index--) {
+        const bullet = bullets[index];
+
+        if (bullet.type !== "boomerang") {
+            const direction =
+                PROJECTILE_DIRECTIONS[bullet.direction];
+
+            if (direction) {
+                bullet.x +=
+                    direction.x *
+                    bullet.speed *
+                    deltaTime;
+
+                bullet.y +=
+                    direction.y *
+                    bullet.speed *
+                    deltaTime;
+            }
+
+            if (isOutsideCanvas(bullet, 20)) {
+                bullets.splice(index, 1);
+            }
+
+            continue;
+        }
+
+        bullet.x += bullet.vx * deltaTime;
+        bullet.y += bullet.vy * deltaTime;
+        bullet.rotation += 0.24 * deltaTime;
+
+        const minX = 20;
+        const minY = 20;
+
+        const maxX =
+            canvas.width - 20 - bullet.width;
+
+        const maxY =
+            canvas.height - 20 - bullet.height;
+
+        const hitHorizontalWall =
+            bullet.x <= minX ||
+            bullet.x >= maxX;
+
+        const hitVerticalWall =
+            bullet.y <= minY ||
+            bullet.y >= maxY;
+
+        if (!hitHorizontalWall && !hitVerticalWall) {
+            continue;
+        }
+
+        if (bullet.bounces >= bullet.maxBounces) {
+            bullets.splice(index, 1);
+            continue;
+        }
+
+        bullet.bounces++;
+
+        if (hitHorizontalWall) {
+            bullet.x = Math.max(
+                minX,
+                Math.min(maxX, bullet.x)
+            );
+
+            bullet.vx *= -1;
+
+            bullet.direction =
+                bullet.vx > 0
+                    ? "ArrowRight"
+                    : "ArrowLeft";
+        }
+
+        if (hitVerticalWall) {
+            bullet.y = Math.max(
+                minY,
+                Math.min(maxY, bullet.y)
+            );
+
+            bullet.vy *= -1;
+
+            bullet.direction =
+                bullet.vy > 0
+                    ? "ArrowDown"
+                    : "ArrowUp";
+        }
+
+        bullet.hitEnemies.clear();
+        bullet.hitBoss = false;
+    }
+}
 
 function drawBullets() {
-
-    ctx.fillStyle = "cyan";
-
     bullets.forEach((bullet) => {
+        if (bullet.type === "boomerang") {
+            ctx.save();
+
+            ctx.translate(
+                bullet.x + bullet.width / 2,
+                bullet.y + bullet.height / 2
+            );
+
+            ctx.rotate(bullet.rotation);
+
+            ctx.font = "24px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+
+            ctx.fillText("🪃", 0, 0);
+
+            ctx.restore();
+
+            return;
+        }
+
+        ctx.fillStyle = "cyan";
 
         ctx.fillRect(
             bullet.x,
@@ -89,45 +296,29 @@ function drawBullets() {
         );
     });
 }
-// ============================================================================
-// PROYECTILES ENEMIGOS
-// ============================================================================
-
-const enemyProjectiles = [];
-
-
-// ============================================================================
-// CREAR PROYECTIL ENEMIGO
-// ============================================================================
 
 function shootEnemyProjectile(
     enemy,
     type = "syringe",
     angleOffset = 0
 ) {
-
-    const enemyCenterX =
+    const centerX =
         enemy.x + enemy.width / 2;
 
-    const enemyCenterY =
+    const centerY =
         enemy.y + enemy.height / 2;
 
-    const playerCenterX =
-        player.x + player.width / 2;
-
-    const playerCenterY =
-        player.y + player.height / 2;
-
     const dx =
-        playerCenterX - enemyCenterX;
+        player.x +
+        player.width / 2 -
+        centerX;
 
     const dy =
-        playerCenterY - enemyCenterY;
+        player.y +
+        player.height / 2 -
+        centerY;
 
-    const distance =
-        Math.sqrt(dx * dx + dy * dy);
-
-    if (distance === 0) {
+    if (Math.hypot(dx, dy) === 0) {
         return;
     }
 
@@ -141,14 +332,10 @@ function shootEnemyProjectile(
         angleOffset;
 
     enemyProjectiles.push({
+        type,
 
-        type: type,
-
-        x:
-            enemyCenterX - 5,
-
-        y:
-            enemyCenterY - 5,
+        x: centerX - 5,
+        y: centerY - 5,
 
         width:
             type === "scalpel"
@@ -160,113 +347,30 @@ function shootEnemyProjectile(
                 ? 6
                 : 10,
 
-        vx:
-            Math.cos(angle) * speed,
-
-        vy:
-            Math.sin(angle) * speed
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed
     });
 }
-
-
-// ============================================================================
-// ACTUALIZAR PROYECTILES ENEMIGOS
-// ============================================================================
 
 function updateEnemyProjectiles(deltaTime) {
-
-    for (
-        let i = enemyProjectiles.length - 1;
-        i >= 0;
-        i--
-    ) {
-
-        const projectile =
-            enemyProjectiles[i];
-
-        projectile.x +=
-            projectile.vx * deltaTime;
-
-        projectile.y +=
-            projectile.vy * deltaTime;
-
-        // Eliminar proyectil fuera de la sala
-        if (
-            projectile.x < -20 ||
-            projectile.x > canvas.width + 20 ||
-            projectile.y < -20 ||
-            projectile.y > canvas.height + 20
-        ) {
-
-            enemyProjectiles.splice(i, 1);
-        }
-    }
+    updateLinearProjectiles(
+        enemyProjectiles,
+        deltaTime,
+        20
+    );
 }
-// ============================================================================
-// COLISIONES PROYECTILES ENEMIGOS / JUGADOR
-// ============================================================================
 
 function checkEnemyProjectileCollisions() {
-
-    for (
-        let i = enemyProjectiles.length - 1;
-        i >= 0;
-        i--
-    ) {
-
-        const projectile =
-            enemyProjectiles[i];
-
-        const colliding =
-            player.x <
-                projectile.x + projectile.width &&
-            player.x + player.width >
-                projectile.x &&
-            player.y <
-                projectile.y + projectile.height &&
-            player.y + player.height >
-                projectile.y;
-
-        if (colliding) {
-
-            damagePlayerFromEntity(
-    0.5,
-    projectile
-);
-
-            enemyProjectiles.splice(i, 1);
-        }
-    }
+    checkProjectilePlayerCollisions(
+        enemyProjectiles
+    );
 }
-
-// ============================================================================
-// DIBUJAR PROYECTILES ENEMIGOS
-// ============================================================================
 
 function drawEnemyProjectiles() {
-
-    enemyProjectiles.forEach((projectile) => {
-
-        ctx.fillStyle = "white";
-
-        ctx.fillRect(
-            projectile.x,
-            projectile.y,
-            projectile.width,
-            projectile.height
-        );
-    });
+    drawRectProjectiles(
+        enemyProjectiles
+    );
 }
-// ============================================================================
-// PROYECTILES DE CUA CUA
-// ============================================================================
-
-const bossProjectiles = [];
-
-
-// ============================================================================
-// CREAR PROYECTIL DE CUA CUA
-// ============================================================================
 
 function shootBossProjectile(
     targetX,
@@ -274,7 +378,6 @@ function shootBossProjectile(
     speed,
     angle = null
 ) {
-
     const centerX =
         boss.x + boss.width / 2;
 
@@ -285,130 +388,48 @@ function shootBossProjectile(
     let vy;
 
     if (angle !== null) {
-
-        vx =
-            Math.cos(angle) * speed;
-
-        vy =
-            Math.sin(angle) * speed;
+        vx = Math.cos(angle) * speed;
+        vy = Math.sin(angle) * speed;
 
     } else {
-
-        const dx =
-            targetX - centerX;
-
-        const dy =
-            targetY - centerY;
+        const dx = targetX - centerX;
+        const dy = targetY - centerY;
 
         const distance =
-            Math.sqrt(dx * dx + dy * dy) || 1;
+            Math.hypot(dx, dy) || 1;
 
-        vx =
-            (dx / distance) * speed;
-
-        vy =
-            (dy / distance) * speed;
+        vx = dx / distance * speed;
+        vy = dy / distance * speed;
     }
 
     bossProjectiles.push({
-
         x: centerX - 6,
         y: centerY - 6,
 
         width: 12,
         height: 12,
 
-        vx: vx,
-        vy: vy
+        vx,
+        vy
     });
 }
-
-
-// ============================================================================
-// ACTUALIZAR PROYECTILES DE CUA CUA
-// ============================================================================
 
 function updateBossProjectiles(deltaTime) {
-
-    for (
-        let i = bossProjectiles.length - 1;
-        i >= 0;
-        i--
-    ) {
-
-        const projectile =
-            bossProjectiles[i];
-
-        projectile.x +=
-            projectile.vx * deltaTime;
-
-        projectile.y +=
-            projectile.vy * deltaTime;
-
-        if (
-            projectile.x < -30 ||
-            projectile.x > canvas.width + 30 ||
-            projectile.y < -30 ||
-            projectile.y > canvas.height + 30
-        ) {
-
-            bossProjectiles.splice(i, 1);
-        }
-    }
+    updateLinearProjectiles(
+        bossProjectiles,
+        deltaTime,
+        30
+    );
 }
-
-// ============================================================================
-// COLISIONES PROYECTILES DE CUA CUA / JUGADOR
-// ============================================================================
 
 function checkBossProjectileCollisions() {
-
-    for (
-        let i = bossProjectiles.length - 1;
-        i >= 0;
-        i--
-    ) {
-
-        const projectile =
-            bossProjectiles[i];
-
-        const colliding =
-            player.x <
-                projectile.x + projectile.width &&
-            player.x + player.width >
-                projectile.x &&
-            player.y <
-                projectile.y + projectile.height &&
-            player.y + player.height >
-                projectile.y;
-
-        if (colliding) {
-
-            damagePlayerFromEntity(
-    0.5,
-    projectile
-);
-
-            bossProjectiles.splice(i, 1);
-        }
-    }
+    checkProjectilePlayerCollisions(
+        bossProjectiles
+    );
 }
 
-// ============================================================================
-// DIBUJAR PROYECTILES DE CUA CUA
-// ============================================================================
-
 function drawBossProjectiles() {
-
-    bossProjectiles.forEach((projectile) => {
-
-        ctx.fillStyle = "white";
-
-        ctx.fillRect(
-            projectile.x,
-            projectile.y,
-            projectile.width,
-            projectile.height
-        );
-    });
+    drawRectProjectiles(
+        bossProjectiles
+    );
 }

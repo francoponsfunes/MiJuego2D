@@ -1,1056 +1,712 @@
 // ============================================================================
 // COLLISIONS.JS
-// Colisiones entre balas, enemigos, drops y knockback
+// Colisiones, recompensas y reacciones de los enemigos.
 // ============================================================================
 
+function areEntitiesColliding(first, second) {
+    return (
+        first.x < second.x + second.width &&
+        first.x + first.width > second.x &&
+        first.y < second.y + second.height &&
+        first.y + first.height > second.y
+    );
+}
 
-// ============================================================================
-// COLISIÓN BALA DEL JUGADOR / ENEMIGO
-// ============================================================================
+function getEntityOverlap(first, second, scale = 1) {
+    const dx =
+        second.x + second.width / 2 -
+        first.x - first.width / 2;
+
+    const dy =
+        second.y + second.height / 2 -
+        first.y - first.height / 2;
+
+    return {
+        dx,
+
+        dy,
+
+        overlapX:
+            first.width * scale / 2 +
+            second.width * scale / 2 -
+            Math.abs(dx),
+
+        overlapY:
+            first.height * scale / 2 +
+            second.height * scale / 2 -
+            Math.abs(dy)
+    };
+}
+
+function separateEntities(
+    first,
+    second,
+    overlap,
+    forcedFirst = false,
+    forcedSecond = false,
+    includeZero = true
+) {
+    const horizontal =
+        overlap.overlapX < overlap.overlapY;
+
+    const axis =
+        horizontal ? "x" : "y";
+
+    const distance =
+        horizontal ? overlap.dx : overlap.dy;
+
+    const amount =
+        horizontal
+            ? overlap.overlapX
+            : overlap.overlapY;
+
+    const direction =
+        includeZero
+            ? distance >= 0
+                ? 1
+                : -1
+            : distance > 0
+                ? 1
+                : -1;
+
+    if (forcedFirst && !forcedSecond) {
+        second[axis] += amount * direction;
+        return;
+    }
+
+    if (forcedSecond && !forcedFirst) {
+        first[axis] -= amount * direction;
+        return;
+    }
+
+    const push = amount / 2;
+
+    first[axis] -= push * direction;
+    second[axis] += push * direction;
+}
+
+function dropDefeatedEnemyRewards(enemy) {
+    if (
+        isCurrentRoomType("doctor") &&
+        enemy.type === "doctor"
+    ) {
+        dropKey(
+            enemy.x + 10,
+            enemy.y + 10
+        );
+
+        dropHalfHeart(
+            enemy.x + 35,
+            enemy.y + 10
+        );
+
+        return;
+    }
+
+    const grantsFullHeart =
+        (
+            isCurrentRoomType("trauma") &&
+            enemy.type === "traumatologist"
+        ) ||
+        (
+            isCurrentRoomType("director") &&
+            enemy.type === "director"
+        );
+
+    if (grantsFullHeart) {
+        dropKey(
+            enemy.x + 5,
+            enemy.y + 10
+        );
+
+        dropFullHeart(
+            enemy.x + 35,
+            enemy.y + 10
+        );
+    }
+}
 
 function checkBulletCollisions() {
-
     for (
         let bulletIndex = bullets.length - 1;
         bulletIndex >= 0;
         bulletIndex--
     ) {
-
         const bullet = bullets[bulletIndex];
+
+        const isBoomerang =
+            bullet.type === "boomerang";
 
         for (
             let enemyIndex = enemies.length - 1;
             enemyIndex >= 0;
             enemyIndex--
         ) {
-
             const enemy = enemies[enemyIndex];
 
             if (
-                bullet.x < enemy.x + enemy.width &&
-                bullet.x + bullet.width > enemy.x &&
-                bullet.y < enemy.y + enemy.height &&
-                bullet.y + bullet.height > enemy.y
+                (
+                    isBoomerang &&
+                    bullet.hitEnemies.has(enemy)
+                ) ||
+                !areEntitiesColliding(
+                    bullet,
+                    enemy
+                )
             ) {
+                continue;
+            }
 
-                // Daño
-                enemy.health--;
+            enemy.health -=
+                isBoomerang
+                    ? bullet.damage
+                    : 1;
 
-                // ============================================================
-                // DOCTOR - GENERAR ENFERMERAS
-                // ============================================================
+            if (isBoomerang) {
+                bullet.hitEnemies.add(enemy);
+            }
+
+            if (
+                enemy.type === "doctor" &&
+                enemy.health <= 8 &&
+                !enemy.nursesSpawned
+            ) {
+                enemy.nursesSpawned = true;
+
+                spawnNurses(enemy);
+            }
+
+            applyEnemyKnockback(
+                enemy,
+                bullet
+            );
+
+            if (!isBoomerang) {
+                bullets.splice(
+                    bulletIndex,
+                    1
+                );
+            }
+
+            if (enemy.health <= 0) {
+                enemies.splice(
+                    enemyIndex,
+                    1
+                );
+
+                dropDefeatedEnemyRewards(enemy);
 
                 if (
-                    enemy.type === "doctor" &&
-                    enemy.health <= 8 &&
-                    !enemy.nursesSpawned
+                    !isCurrentRoomType("boss") &&
+                    enemies.length === 0 &&
+                    !rooms[currentRoom].cleared
                 ) {
-
-                    enemy.nursesSpawned = true;
-
-                    spawnNurses(enemy);
+                    rooms[currentRoom].cleared = true;
                 }
+            }
 
-
-                // ============================================================
-                // KNOCKBACK
-                // ============================================================
-
-                applyEnemyKnockback(enemy, bullet);
-
-
-                // La bala desaparece
-                bullets.splice(bulletIndex, 1);
-
-
-                // ============================================================
-                // ENEMIGO MUERTO
-                // ============================================================
-
-                if (enemy.health <= 0) {
-
-                    const dropX = enemy.x;
-                    const dropY = enemy.y;
-                    const enemyType = enemy.type;
-
-                    enemies.splice(enemyIndex, 1);
-
-
-                    // ========================================================
-                    // DROP DEL DOCTOR
-                    // ========================================================
-
-                   if (
-                        isCurrentRoomType("doctor") &&
-                        enemyType === "doctor"
-                    ) {
-
-                        dropKey(
-                            dropX + 10,
-                            dropY + 10
-                        );
-
-                        dropHalfHeart(
-                            dropX + 35,
-                            dropY + 10
-                        );
-                    }
-
-
-                    // ========================================================
-                    // DROP DEL TRAUMATÓLOGO
-                    // ========================================================
-
-                    if (
-                        isCurrentRoomType("trauma") &&
-                        enemyType === "traumatologist"
-                    ) {
-
-                        dropKey(
-                            dropX + 5,
-                            dropY + 10
-                        );
-
-                        dropFullHeart(
-                            dropX + 35,
-                            dropY + 10
-                        );
-                    }
-
-
-                    // ========================================================
-                    // DROP DEL DIRECTOR
-                    // ========================================================
-
-                    if (
-                        isCurrentRoomType("director") &&
-                        enemyType === "director"
-                    ) {
-
-                        dropKey(
-                            dropX + 5,
-                            dropY + 10
-                        );
-
-                        dropFullHeart(
-                            dropX + 35,
-                            dropY + 10
-                        );
-                    }
-
-
-                    // ========================================================
-                    // SALA COMPLETADA
-                    // ========================================================
-
-                    if (
-                        !isCurrentRoomType("boss") &&
-                        enemies.length === 0 &&
-                        !rooms[currentRoom].cleared
-                    ) {
-
-                        rooms[currentRoom].cleared = true;
-                    }
-                }
-
-                // Una bala solo golpea una vez
+            if (!isBoomerang) {
                 break;
             }
         }
     }
 }
 
-
-// ============================================================================
-// COLISIÓN ENTRE ENEMIGOS
-// ============================================================================
+function isEnemyMovementForced(enemy) {
+    return (
+        (
+            enemy.type === "traumatologist" &&
+            enemy.traumaState === "charge"
+        ) ||
+        (
+            enemy.type === "anesthesiologist" &&
+            enemy.anesthesiologistState === "dash"
+        )
+    );
+}
 
 function resolveEnemyCollisions() {
+    for (
+        let firstIndex = 0;
+        firstIndex < enemies.length;
+        firstIndex++
+    ) {
+        for (
+            let secondIndex = firstIndex + 1;
+            secondIndex < enemies.length;
+            secondIndex++
+        ) {
+            const first =
+                enemies[firstIndex];
 
-    for (let i = 0; i < enemies.length; i++) {
+            const second =
+                enemies[secondIndex];
 
-        for (let j = i + 1; j < enemies.length; j++) {
-
-            const enemyA = enemies[i];
-            const enemyB = enemies[j];
-
-
-            const centerAX =
-                enemyA.x +
-                enemyA.width / 2;
-
-            const centerAY =
-                enemyA.y +
-                enemyA.height / 2;
-
-            const centerBX =
-                enemyB.x +
-                enemyB.width / 2;
-
-            const centerBY =
-                enemyB.y +
-                enemyB.height / 2;
-
-
-            // 80% del cuerpo
-            const halfWidthA =
-                enemyA.width *
-                0.8 /
-                2;
-
-            const halfHeightA =
-                enemyA.height *
-                0.8 /
-                2;
-
-            const halfWidthB =
-                enemyB.width *
-                0.8 /
-                2;
-
-            const halfHeightB =
-                enemyB.height *
-                0.8 /
-                2;
-
-
-            const dx =
-                centerBX -
-                centerAX;
-
-            const dy =
-                centerBY -
-                centerAY;
-
-
-            const overlapX =
-                halfWidthA +
-                halfWidthB -
-                Math.abs(dx);
-
-            const overlapY =
-                halfHeightA +
-                halfHeightB -
-                Math.abs(dy);
-
+            const overlap =
+                getEntityOverlap(
+                    first,
+                    second,
+                    0.8
+                );
 
             if (
-                overlapX <= 0 ||
-                overlapY <= 0
+                overlap.overlapX <= 0 ||
+                overlap.overlapY <= 0
             ) {
                 continue;
             }
 
-
-            // Los movimientos forzados de Sala 3
-            // no deben perder fuerza por chocarse con aliados.
-            const forcedA =
-                (
-                    enemyA.type === "traumatologist" &&
-                    enemyA.traumaState === "charge"
-                ) ||
-                (
-                    enemyA.type === "anesthesiologist" &&
-                    enemyA.anesthesiologistState === "dash"
-                );
-
-
-            const forcedB =
-                (
-                    enemyB.type === "traumatologist" &&
-                    enemyB.traumaState === "charge"
-                ) ||
-                (
-                    enemyB.type === "anesthesiologist" &&
-                    enemyB.anesthesiologistState === "dash"
-                );
-
-
-            // ====================================================================
-            // SEPARACIÓN HORIZONTAL
-            // ====================================================================
-
-            if (overlapX < overlapY) {
-
-                if (forcedA && !forcedB) {
-
-                    if (dx >= 0) {
-                        enemyB.x += overlapX;
-                    } else {
-                        enemyB.x -= overlapX;
-                    }
-
-                } else if (forcedB && !forcedA) {
-
-                    if (dx >= 0) {
-                        enemyA.x -= overlapX;
-                    } else {
-                        enemyA.x += overlapX;
-                    }
-
-                } else {
-
-                    const push =
-                        overlapX / 2;
-
-                    if (dx >= 0) {
-
-                        enemyA.x -= push;
-                        enemyB.x += push;
-
-                    } else {
-
-                        enemyA.x += push;
-                        enemyB.x -= push;
-                    }
-                }
-            }
-
-
-            // ====================================================================
-            // SEPARACIÓN VERTICAL
-            // ====================================================================
-
-            else {
-
-                if (forcedA && !forcedB) {
-
-                    if (dy >= 0) {
-                        enemyB.y += overlapY;
-                    } else {
-                        enemyB.y -= overlapY;
-                    }
-
-                } else if (forcedB && !forcedA) {
-
-                    if (dy >= 0) {
-                        enemyA.y -= overlapY;
-                    } else {
-                        enemyA.y += overlapY;
-                    }
-
-                } else {
-
-                    const push =
-                        overlapY / 2;
-
-                    if (dy >= 0) {
-
-                        enemyA.y -= push;
-                        enemyB.y += push;
-
-                    } else {
-
-                        enemyA.y += push;
-                        enemyB.y -= push;
-                    }
-                }
-            }
+            separateEntities(
+                first,
+                second,
+                overlap,
+                isEnemyMovementForced(first),
+                isEnemyMovementForced(second)
+            );
         }
     }
 }
-
-
-// ============================================================================
-// COLISIÓN ENTRE DROPS
-// ============================================================================
 
 function resolveDroppedItemCollisions() {
+    const items = [
+        ...droppedKeys,
+        ...droppedHalfHearts,
+        ...droppedBossItems,
+        ...droppedBrightHearts
+    ];
 
-    const items = [];
+    for (
+        let firstIndex = 0;
+        firstIndex < items.length;
+        firstIndex++
+    ) {
+        for (
+            let secondIndex = firstIndex + 1;
+            secondIndex < items.length;
+            secondIndex++
+        ) {
+            const first =
+                items[firstIndex];
 
+            const second =
+                items[secondIndex];
 
-    // Llaves
-    droppedKeys.forEach((key) => {
-
-        items.push({
-            object: key
-        });
-    });
-
-
-    // Medios corazones
-    droppedHalfHearts.forEach((heart) => {
-
-        items.push({
-            object: heart
-        });
-    });
-
-
-    // Drops del jefe
-    droppedBossItems.forEach((item) => {
-
-        items.push({
-            object: item
-        });
-    });
-
-
-    // Corazones Brillantes
-    droppedBrightHearts.forEach((heart) => {
-
-        items.push({
-            object: heart
-        });
-    });
-
-
-    // Comparar cada objeto con los demás
-    for (let i = 0; i < items.length; i++) {
-
-        for (let j = i + 1; j < items.length; j++) {
-
-            const itemA = items[i].object;
-            const itemB = items[j].object;
-
-
-            // Solo pueden chocar objetos de la misma sala
             if (
-                itemA.room !== itemB.room ||
-                itemA.room !== currentRoom
+                first.room !== second.room ||
+                first.room !== currentRoom
             ) {
                 continue;
             }
 
+            const overlap =
+                getEntityOverlap(
+                    first,
+                    second
+                );
 
-            const centerAX =
-                itemA.x + itemA.width / 2;
-
-            const centerAY =
-                itemA.y + itemA.height / 2;
-
-            const centerBX =
-                itemB.x + itemB.width / 2;
-
-            const centerBY =
-                itemB.y + itemB.height / 2;
-
-
-            const halfWidthA =
-                itemA.width / 2;
-
-            const halfHeightA =
-                itemA.height / 2;
-
-            const halfWidthB =
-                itemB.width / 2;
-
-            const halfHeightB =
-                itemB.height / 2;
-
-
-            const dx =
-                centerBX - centerAX;
-
-            const dy =
-                centerBY - centerAY;
-
-
-            const overlapX =
-                halfWidthA +
-                halfWidthB -
-                Math.abs(dx);
-
-            const overlapY =
-                halfHeightA +
-                halfHeightB -
-                Math.abs(dy);
-
-
-            if (overlapX <= 0 || overlapY <= 0) {
+            if (
+                overlap.overlapX <= 0 ||
+                overlap.overlapY <= 0
+            ) {
                 continue;
             }
 
-
-            // ================================================================
-            // SEPARACIÓN HORIZONTAL
-            // ================================================================
-
-            if (overlapX < overlapY) {
-
-                const pushX = overlapX / 2;
-
-                if (dx > 0) {
-
-                    itemA.x -= pushX;
-                    itemB.x += pushX;
-
-                } else {
-
-                    itemA.x += pushX;
-                    itemB.x -= pushX;
-                }
-            }
-
-
-            // ================================================================
-            // SEPARACIÓN VERTICAL
-            // ================================================================
-
-            else {
-
-                const pushY = overlapY / 2;
-
-                if (dy > 0) {
-
-                    itemA.y -= pushY;
-                    itemB.y += pushY;
-
-                } else {
-
-                    itemA.y += pushY;
-                    itemB.y -= pushY;
-                }
-            }
+            separateEntities(
+                first,
+                second,
+                overlap,
+                false,
+                false,
+                false
+            );
         }
     }
 }
 
+function isCommittedEnemyAttack(enemy) {
+    if (isCurrentRoomType("trauma")) {
+        const anesthesiaAttack =
+            enemy.type === "anesthesiologist" &&
+            [
+                "windup",
+                "fakeout",
+                "dash"
+            ].includes(
+                enemy.anesthesiologistState
+            );
 
-// ============================================================================
-// KNOCKBACK DEL ENEMIGO
-// ============================================================================
-function applyEnemyKnockback(enemy, bullet) {
+        const traumaAttack =
+            enemy.type === "traumatologist" &&
+            [
+                "chargeWindup",
+                "charge",
+                "slamWindup",
+                "slamActive"
+            ].includes(
+                enemy.traumaState
+            );
 
-    // ========================================================================
-    // ATAQUES COMPROMETIDOS DE LA SALA 3
-    // ========================================================================
+        return (
+            anesthesiaAttack ||
+            traumaAttack
+        );
+    }
 
-    const committedTraumaAttack =
-
-        isCurrentRoomType("trauma") &&
-
-        (
-
-            (
-
-                enemy.type === "anesthesiologist" &&
-
-                (
-
-                    enemy.anesthesiologistState === "windup" ||
-
-                    enemy.anesthesiologistState === "fakeout" ||
-
-                    enemy.anesthesiologistState === "dash"
-
-                )
-
-            ) ||
-
-            (
-
-                enemy.type === "traumatologist" &&
-
-                (
-
-                    enemy.traumaState === "chargeWindup" ||
-
-                    enemy.traumaState === "charge" ||
-
-                    enemy.traumaState === "slamWindup" ||
-
-                    enemy.traumaState === "slamActive"
-
-                )
-
+    if (isCurrentRoomType("junction")) {
+        return (
+            enemy.type === "leper" &&
+            enemy.junctionAmbusher &&
+            [
+                "windup",
+                "rush"
+            ].includes(
+                enemy.leperState
             )
-
         );
-
-
-    // ========================================================================
-    // ATAQUES DEL CRUCE CENTRAL
-    // ========================================================================
-
-    const committedJunctionAttack =
-
-        isCurrentRoomType("junction") &&
-
-        enemy.type === "leper" &&
-
-        enemy.junctionAmbusher &&
-
-        (
-
-            enemy.leperState === "windup" ||
-
-            enemy.leperState === "rush"
-
-        );
-
-
-    // ========================================================================
-    // ATAQUES DE LA SALA DE ANESTESIA
-    // ========================================================================
-
-    const committedAnesthesiaPreparationAttack =
-
-        isCurrentRoomType("anesthesiaPreparation") &&
-
-        enemy.type === "anesthesiologist" &&
-
-        enemy.preparationAnesthesiologist &&
-
-        (
-
-            enemy.preparationState === "dashWindup" ||
-
-            enemy.preparationState === "dash"
-
-        );
-
-
-    // ========================================================================
-    // ATAQUES DE PREPARACIÓN QUIRÚRGICA
-    // ========================================================================
-
-    const committedSurgicalPreparationAttack =
-
-        isCurrentRoomType("surgicalPreparation") &&
-
-        (
-
-            // ================================================================
-            // CIRUJANO APUNTANDO
-            // ================================================================
-
-            (
-
-                enemy.surgicalPreparationSurgeon &&
-
-                enemy.surgicalState === "aim"
-
-            ) ||
-
-            // ================================================================
-            // ENFERMERA PREPARANDO O EJECUTANDO SU EMBESTIDA
-            // ================================================================
-
-            (
-
-                enemy.surgicalPreparationNurse &&
-
-                (
-
-                    enemy.nurseState === "windup" ||
-
-                    enemy.nurseState === "rush"
-
-                )
-
-            )
-
-        );
-
-
-    // ========================================================================
-    // CONSERVAR EL ATAQUE, PERO RECIBIR EL DAÑO DE LA BALA
-    // ========================================================================
+    }
 
     if (
-
-        committedTraumaAttack ||
-
-        committedJunctionAttack ||
-
-        committedAnesthesiaPreparationAttack ||
-
-        committedSurgicalPreparationAttack
-
+        isCurrentRoomType(
+            "anesthesiaPreparation"
+        )
     ) {
+        return (
+            enemy.type === "anesthesiologist" &&
+            enemy.preparationAnesthesiologist &&
+            [
+                "dashWindup",
+                "dash"
+            ].includes(
+                enemy.preparationState
+            )
+        );
+    }
+
+    if (
+        isCurrentRoomType(
+            "surgicalPreparation"
+        )
+    ) {
+        return (
+            (
+                enemy.surgicalPreparationSurgeon &&
+                enemy.surgicalState === "aim"
+            ) ||
+            (
+                enemy.surgicalPreparationNurse &&
+                [
+                    "windup",
+                    "rush"
+                ].includes(
+                    enemy.nurseState
+                )
+            )
+        );
+    }
+
+    return false;
+}
+
+function applyEnemyKnockback(enemy, bullet) {
+    if (
+        isCommittedEnemyAttack(enemy)
+    ) {
+        return;
+    }
+
+    const direction =
+        PROJECTILE_DIRECTIONS[
+            bullet.direction
+        ];
+
+    if (!direction) {
+        return;
+    }
+
+    enemy.knockbackX =
+        direction.x * 8;
+
+    enemy.knockbackY =
+        direction.y * 8;
+}
+
+function handleAnesthesiologistContact(
+    enemy,
+    colliding
+) {
+    if (
+        isCurrentRoomType("trauma")
+    ) {
+        if (
+            colliding &&
+            enemy.anesthesiologistState === "dash" &&
+            !enemy.anesthesiaUsedThisDash
+        ) {
+            enemy.anesthesiaUsedThisDash =
+                true;
+
+            movementDisabledUntil =
+                Math.max(
+                    movementDisabledUntil,
+                    performance.now() + 700
+                );
+
+            enemy.anesthesiologistState =
+                "retreat";
+
+            enemy.stateTimer =
+                enemy.retreatDuration;
+        }
 
         return;
     }
 
+    if (
+        !enemy.bossAssistant ||
+        !colliding ||
+        enemy.anesthesiologistState !== "dash" ||
+        enemy.anesthesiaUsedThisDash
+    ) {
+        return;
+    }
 
-    // ========================================================================
-    // KNOCKBACK NORMAL
-    // ========================================================================
+    enemy.anesthesiaUsedThisDash =
+        true;
 
-    const force =
-        8;
-
+    const now =
+        performance.now();
 
     if (
-        bullet.direction === "ArrowRight"
+        now >=
+        boss.anesthesiaImmunityUntil
     ) {
+        movementDisabledUntil =
+            Math.max(
+                movementDisabledUntil,
+                now + 450
+            );
 
-        enemy.knockbackX =
-            force;
-
-
-        enemy.knockbackY =
-            0;
+        boss.anesthesiaImmunityUntil =
+            now + 1400;
     }
 
+    enemy.anesthesiologistState =
+        "return";
+}
 
-    else if (
-        bullet.direction === "ArrowLeft"
+function getDistanceBetweenEntityCenters(
+    first,
+    second
+) {
+    const dx =
+        first.x +
+        first.width / 2 -
+        second.x -
+        second.width / 2;
+
+    const dy =
+        first.y +
+        first.height / 2 -
+        second.y -
+        second.height / 2;
+
+    return Math.hypot(
+        dx,
+        dy
+    );
+}
+
+function handleTraumatologistContact(
+    enemy,
+    colliding
+) {
+    if (
+        colliding &&
+        enemy.traumaState === "charge" &&
+        !enemy.attackHitThisStrike
     ) {
+        enemy.attackHitThisStrike =
+            true;
 
-        enemy.knockbackX =
-            -force;
+        damagePlayerFromEntity(
+            1,
+            enemy,
+            11
+        );
 
+        enemy.traumaState =
+            "recovery";
 
-        enemy.knockbackY =
-            0;
+        enemy.stateTimer =
+            enemy.enraged
+                ? 22
+                : 30;
+
+        return;
     }
 
-
-    else if (
-        bullet.direction === "ArrowUp"
+    if (
+        enemy.traumaState !== "slamActive" ||
+        enemy.slamHitThisAttack
     ) {
-
-        enemy.knockbackX =
-            0;
-
-
-        enemy.knockbackY =
-            -force;
+        return;
     }
 
-
-    else if (
-        bullet.direction === "ArrowDown"
+    if (
+        getDistanceBetweenEntityCenters(
+            player,
+            enemy
+        ) <=
+        enemy.currentSlamRadius
     ) {
+        enemy.slamHitThisAttack =
+            true;
 
-        enemy.knockbackX =
-            0;
-
-
-        enemy.knockbackY =
-            force;
+        damagePlayerFromEntity(
+            1,
+            enemy,
+            12
+        );
     }
 }
-function checkPlayerDamage() {
 
-    if (gameOver || victory) {
+function handleDirectorContact(
+    enemy,
+    colliding
+) {
+    if (
+        enemy.pressureState === "active" &&
+        !enemy.pressureHit
+    ) {
+        const distance =
+            Math.hypot(
+                player.x +
+                    player.width / 2 -
+                    enemy.pressureTargetX,
+
+                player.y +
+                    player.height / 2 -
+                    enemy.pressureTargetY
+            );
+
+        if (
+            distance <=
+            enemy.pressureRadius
+        ) {
+            enemy.pressureHit =
+                true;
+
+            damagePlayer(
+                0.5,
+                enemy.pressureTargetX,
+                enemy.pressureTargetY,
+                8
+            );
+        }
+    }
+
+    if (
+        colliding &&
+        enemy.directorState === "charge" &&
+        !enemy.chargeHit
+    ) {
+        enemy.chargeHit =
+            true;
+
+        damagePlayerFromEntity(
+            1,
+            enemy,
+            11
+        );
+
+        enemy.directorState =
+            "recover";
+
+        enemy.stateTimer =
+            enemy.recoverDuration;
+
         return;
     }
 
+    if (!colliding) {
+        return;
+    }
+
+    const now =
+        performance.now();
+
+    if (
+        now -
+            enemy.lastAttackTime >=
+        enemy.attackCooldown
+    ) {
+        damagePlayerFromEntity(
+            0.5,
+            enemy
+        );
+
+        enemy.lastAttackTime =
+            now;
+    }
+}
+
+function checkPlayerDamage() {
+    if (
+        gameOver ||
+        victory
+    ) {
+        return;
+    }
 
     enemies.forEach((enemy) => {
-
         const colliding =
-            player.x < enemy.x + enemy.width &&
-            player.x + player.width > enemy.x &&
-            player.y < enemy.y + enemy.height &&
-            player.y + player.height > enemy.y;
+            areEntitiesColliding(
+                player,
+                enemy
+            );
 
-
-        // ====================================================================
-        // ANESTESIÓLOGO
-        // ====================================================================
-
-        if (enemy.type === "anesthesiologist") {
-
-
-            // ================================================================
-            // ANESTESIÓLOGO DE SALA 3
-            // ================================================================
-
-            if (isCurrentRoomType("trauma")) {
-
-                if (
-                    colliding &&
-                    enemy.anesthesiologistState === "dash" &&
-                    !enemy.anesthesiaUsedThisDash
-                ) {
-
-                    enemy.anesthesiaUsedThisDash =
-                        true;
-
-
-                    // Anestesia:
-                    // castiga la esquiva fallida sin quitar vida.
-                    movementDisabledUntil =
-                        Math.max(
-                            movementDisabledUntil,
-                            performance.now() + 700
-                        );
-
-
-                    // Si acierta, entra y sale:
-                    // no se queda pegado al jugador.
-                    enemy.anesthesiologistState =
-                        "retreat";
-
-                    enemy.stateTimer =
-                        enemy.retreatDuration;
-                }
-
-
-                return;
-            }
-
-
-            // ================================================================
-            // ANESTESIÓLOGOS ASISTENTES DE CUA CUA
-            // Solo anestesian durante su entrada anunciada.
-            // ================================================================
-
-            if (
-                enemy.bossAssistant &&
-                colliding &&
-                enemy.anesthesiologistState === "dash" &&
-                !enemy.anesthesiaUsedThisDash
-            ) {
-
-                enemy.anesthesiaUsedThisDash =
-                    true;
-
-                const now =
-                    performance.now();
-
-                // Inmunidad compartida: dos asistentes nunca pueden
-                // encadenar anestesia sobre el jugador.
-                if (
-                    now >=
-                    boss.anesthesiaImmunityUntil
-                ) {
-
-                    movementDisabledUntil =
-                        Math.max(
-                            movementDisabledUntil,
-                            now + 450
-                        );
-
-                    boss.anesthesiaImmunityUntil =
-                        now + 1400;
-                }
-
-                // Acierta o falla: después de una entrada debe regresar.
-                enemy.anesthesiologistState =
-                    "return";
-            }
-
+        if (
+            enemy.type ===
+            "anesthesiologist"
+        ) {
+            handleAnesthesiologistContact(
+                enemy,
+                colliding
+            );
 
             return;
         }
 
-
-        // ====================================================================
-        // TRAUMATÓLOGO
-        // ====================================================================
-
-        if (enemy.type === "traumatologist") {
-
-
-            // ================================================================
-            // CARGA FRONTAL
-            // ================================================================
-
-            if (
-                colliding &&
-                enemy.traumaState === "charge" &&
-                !enemy.attackHitThisStrike
-            ) {
-
-                enemy.attackHitThisStrike =
-                    true;
-
-
-                damagePlayerFromEntity(
-                    1,
-                    enemy,
-                    11
-                );
-
-
-                enemy.traumaState =
-                    "recovery";
-
-                enemy.stateTimer =
-                    enemy.enraged
-                        ? 22
-                        : 30;
-
-
-                return;
-            }
-
-
-            // ================================================================
-            // GOLPE DE ÁREA
-            // ================================================================
-
-            if (
-                enemy.traumaState === "slamActive" &&
-                !enemy.slamHitThisAttack
-            ) {
-
-                const playerCenterX =
-                    player.x +
-                    player.width / 2;
-
-                const playerCenterY =
-                    player.y +
-                    player.height / 2;
-
-                const enemyCenterX =
-                    enemy.x +
-                    enemy.width / 2;
-
-                const enemyCenterY =
-                    enemy.y +
-                    enemy.height / 2;
-
-
-                const dx =
-                    playerCenterX -
-                    enemyCenterX;
-
-                const dy =
-                    playerCenterY -
-                    enemyCenterY;
-
-
-                const distance =
-                    Math.sqrt(
-                        dx * dx +
-                        dy * dy
-                    );
-
-
-                if (
-                    distance <=
-                    enemy.currentSlamRadius
-                ) {
-
-                    enemy.slamHitThisAttack =
-                        true;
-
-
-                    damagePlayerFromEntity(
-                        1,
-                        enemy,
-                        12
-                    );
-                }
-            }
-
-
-            // El contacto normal con el Traumatólogo
-            // no hace daño.
-            return;
-        }
-
-
-        // ====================================================================
-        // DIRECTOR
-        // ====================================================================
-
-        if (enemy.type === "director") {
-
-            // La Inspección castiga quedarse dentro de la zona marcada.
-            if (
-                enemy.pressureState === "active" &&
-                !enemy.pressureHit
-            ) {
-
-                const playerCenterX =
-                    player.x + player.width / 2;
-
-                const playerCenterY =
-                    player.y + player.height / 2;
-
-                const pressureDx =
-                    playerCenterX - enemy.pressureTargetX;
-
-                const pressureDy =
-                    playerCenterY - enemy.pressureTargetY;
-
-                const pressureDistance =
-                    Math.sqrt(
-                        pressureDx * pressureDx +
-                        pressureDy * pressureDy
-                    );
-
-                if (
-                    pressureDistance <=
-                    enemy.pressureRadius
-                ) {
-
-                    enemy.pressureHit =
-                        true;
-
-                    damagePlayer(
-                        0.5,
-                        enemy.pressureTargetX,
-                        enemy.pressureTargetY,
-                        8
-                    );
-                }
-            }
-
-            // La carga es su golpe fuerte y está anunciada visualmente.
-            if (
-                colliding &&
-                enemy.directorState === "charge" &&
-                !enemy.chargeHit
-            ) {
-
-                enemy.chargeHit =
-                    true;
-
-                damagePlayerFromEntity(
-                    1,
-                    enemy,
-                    11
-                );
-
-                enemy.directorState =
-                    "recover";
-
-                enemy.stateTimer =
-                    enemy.recoverDuration;
-
-                return;
-            }
-
-
-            // El contacto normal ya no reemplaza a sus ataques.
-            if (colliding) {
-
-                const now =
-                    performance.now();
-
-
-                if (
-                    now - enemy.lastAttackTime >=
-                    enemy.attackCooldown
-                ) {
-
-                    damagePlayerFromEntity(
-                        0.5,
-                        enemy
-                    );
-
-
-                    enemy.lastAttackTime =
-                        now;
-                }
-            }
-
+        if (
+            enemy.type ===
+            "traumatologist"
+        ) {
+            handleTraumatologistContact(
+                enemy,
+                colliding
+            );
 
             return;
         }
 
+        if (
+            enemy.type ===
+            "director"
+        ) {
+            handleDirectorContact(
+                enemy,
+                colliding
+            );
 
-        // ====================================================================
-        // RESTO DE ENEMIGOS
-        // ====================================================================
+            return;
+        }
 
         if (
             colliding &&
             !enemy.touchingPlayer
         ) {
-
             enemy.touchingPlayer =
                 true;
-
 
             damagePlayerFromEntity(
                 0.5,
@@ -1058,51 +714,40 @@ function checkPlayerDamage() {
             );
         }
 
-
         if (!colliding) {
-
             enemy.touchingPlayer =
                 false;
         }
     });
 
+    if (
+        !boss.active ||
+        boss.defeated
+    ) {
+        return;
+    }
 
-    // ========================================================================
-    // CUA CUA
-    // ========================================================================
+    const colliding =
+        areEntitiesColliding(
+            player,
+            boss
+        );
 
     if (
-        boss.active &&
-        !boss.defeated
+        colliding &&
+        !boss.touchingPlayer
     ) {
+        boss.touchingPlayer =
+            true;
 
-        const bossColliding =
-            player.x < boss.x + boss.width &&
-            player.x + player.width > boss.x &&
-            player.y < boss.y + boss.height &&
-            player.y + player.height > boss.y;
+        damagePlayerFromEntity(
+            0.5,
+            boss
+        );
+    }
 
-
-        if (
-            bossColliding &&
-            !boss.touchingPlayer
-        ) {
-
-            boss.touchingPlayer =
-                true;
-
-
-            damagePlayerFromEntity(
-                0.5,
-                boss
-            );
-        }
-
-
-        if (!bossColliding) {
-
-            boss.touchingPlayer =
-                false;
-        }
+    if (!colliding) {
+        boss.touchingPlayer =
+            false;
     }
 }

@@ -1,156 +1,231 @@
-// ========================
-// VIDA DEL JUGADOR
-// ========================
-
+// ============================================================================
+// GAME.JS - Estado general, reinicio y ciclo principal.
+// ============================================================================
 
 let gameOver = false;
+
 let victory = false;
+
 let bossDoorUnlocked = false;
 
+let lastTime = 0;
+
+
 // ============================================================================
-// REINICIAR JUEGO
+// REINICIAR PARTIDA
 // ============================================================================
 
 function restartGame() {
 
-    // ========================================================================
-    // ITEMS Y PROYECTILES
-    // ========================================================================
 
-    droppedKeys.length = 0;
-    droppedHalfHearts.length = 0;
-    droppedBossItems.length = 0;
-    droppedBrightHearts.length = 0;
+    // Limpiar objetos, proyectiles y enemigos.
 
-    bullets.length = 0;
-    enemyProjectiles.length = 0;
-    bossProjectiles.length = 0;
+    [
+
+        droppedKeys,
+
+        droppedHalfHearts,
+
+        droppedBossItems,
+
+        droppedBrightHearts,
+
+        bullets,
+
+        enemyProjectiles,
+
+        bossProjectiles,
+
+        enemies
+
+    ].forEach((collection) => {
+
+        collection.length = 0;
+    });
 
 
-    // ========================================================================
-    // JUGADOR
-    // ========================================================================
+    // Reiniciar posición del jugador.
 
     player.x =
-        canvas.width / 2 - 20;
+
+        canvas.width / 2 -
+
+        player.width / 2;
 
     player.y =
-        canvas.height / 2 - 20;
+
+        canvas.height / 2 -
+
+        player.height / 2;
+
+
+    // Reiniciar vida y objetos.
 
     playerMaxHealth = 3;
-    playerHealth = playerMaxHealth;
+
+    playerHealth =
+        playerMaxHealth;
+
     playerKeys = 0;
+
+    playerBoomerangs = 0;
+
+    playerAccessCards = 0;
+
     brightHeartsCollected = 0;
 
+
+    // Reiniciar controles y estados.
+
+    player.aimDirection =
+        "ArrowUp";
+
+    nextShotTime = 0;
+
+    shootingDirection = null;
+
     playerKnockbackX = 0;
+
     playerKnockbackY = 0;
 
     invulnerableUntil = 0;
+
     movementDisabledUntil = 0;
-    
 
 
-
-    // ========================================================================
-    // ESTADO GENERAL
-    // ========================================================================
+    // Reiniciar estado general.
 
     gameOver = false;
+
     victory = false;
+
+    elevatorDialogOpen = false;
 
     bossDoorUnlocked = false;
 
     resetRoomsForNewRun();
 
 
-    // ========================================================================
-    // ENEMIGOS
-    // ========================================================================
+    // Reiniciar a Cua Cua.
 
-    enemies.length = 0;
+    Object.assign(
+
+        boss,
+
+        {
+
+            active:
+                false,
+
+            defeated:
+                false,
+
+            touchingPlayer:
+                false,
+
+            health:
+                boss.maxHealth,
+
+            assistantCommandTimer:
+                90,
+
+            assistantTurn:
+                0,
+
+            anesthesiaImmunityUntil:
+                0,
+
+            attackSequence:
+                0
+        }
+    );
 
 
-    // ========================================================================
-    // CUA CUA
-    // ========================================================================
+    // Generar enemigos iniciales si corresponde.
 
-    boss.active = false;
-    boss.defeated = false;
-    boss.touchingPlayer = false;
+    if (
 
-    boss.health =
-        boss.maxHealth;
+        !rooms[currentRoom]
+            .cleared
 
-    boss.assistantCommandTimer = 90;
-    boss.assistantTurn = 0;
-    boss.anesthesiaImmunityUntil = 0;
-    boss.attackSequence = 0;
+    ) {
 
-
-    // ========================================================================
-    // GENERAR SALA INICIAL
-    // ========================================================================
-
-    if (!rooms[currentRoom].cleared) {
         spawnEnemies(
-            rooms[currentRoom].enemyCount
+
+            rooms[currentRoom]
+                .enemyCount
         );
     }
 }
-// ============================================================================
-// GAME LOOP
-// ============================================================================
 
-let lastTime = 0;
+
+// ============================================================================
+// CICLO PRINCIPAL
+// ============================================================================
 
 function gameLoop(currentTime) {
 
-    const deltaTime = lastTime
 
-        ? Math.min(
-            3,
-            Math.max(
-                0,
-                (currentTime - lastTime) / 16.67
+    // Mantener una velocidad consistente entre distintos FPS.
+
+    const deltaTime =
+
+        lastTime
+
+            ? Math.min(
+
+                3,
+
+                Math.max(
+
+                    0,
+
+                    (
+                        currentTime -
+                        lastTime
+                    ) / 16.67
+                )
             )
-        )
 
-        : 1;
+            : 1;
 
-    lastTime = currentTime;
+    lastTime =
+        currentTime;
 
 
-    // ========================================================================
-    // LIMPIAR PANTALLA
-    // ========================================================================
+    // Limpiar pantalla.
 
     ctx.clearRect(
+
         0,
+
         0,
+
         canvas.width,
+
         canvas.height
     );
 
 
-    // ========================================================================
-    // ACTUALIZACIÓN
-    // ========================================================================
+    // Actualizar únicamente si la partida está activa.
 
-    if (!gameOver) {
+    if (
 
+        !gameOver &&
 
-        // ====================================================================
-        // JUGADOR
-        // ====================================================================
+        !victory &&
 
-        updatePlayer(deltaTime);
+        !elevatorDialogOpen
 
+    ) {
 
-        // ====================================================================
-        // PROYECTILES
-        // ====================================================================
+        updatePlayer(
+            deltaTime
+        );
 
-        updateBullets(deltaTime);
+        updateBullets(
+            deltaTime
+        );
 
         updateEnemyProjectiles(
             deltaTime
@@ -160,11 +235,6 @@ function gameLoop(currentTime) {
             deltaTime
         );
 
-
-        // ====================================================================
-        // ENEMIGOS Y BOSS
-        // ====================================================================
-
         updateEnemies(
             deltaTime
         );
@@ -173,19 +243,9 @@ function gameLoop(currentTime) {
             deltaTime
         );
 
-
-        // ====================================================================
-        // COLISIONES FÍSICAS
-        // ====================================================================
-
         resolveEnemyCollisions();
 
         resolveDroppedItemCollisions();
-
-
-        // ====================================================================
-        // COMBATE
-        // ====================================================================
 
         checkBulletCollisions();
 
@@ -197,11 +257,6 @@ function gameLoop(currentTime) {
 
         checkBossProjectileCollisions();
 
-
-        // ====================================================================
-        // OBJETOS
-        // ====================================================================
-
         checkKeyPickup();
 
         checkHalfHeartPickup();
@@ -210,29 +265,22 @@ function gameLoop(currentTime) {
 
         checkBrightHeartPickup();
 
-
-        // ====================================================================
-        // SALAS
-        // ====================================================================
-
         checkRoomClear();
 
         checkRoomChange();
     }
 
 
-    // ========================================================================
-    // HABITACIÓN
-    // ========================================================================
+    // Dibujar habitación y ascensor.
 
     updateDoors();
 
     drawRoom();
 
+    drawElevator();
 
-    // ========================================================================
-    // ENTIDADES
-    // ========================================================================
+
+    // Dibujar personajes.
 
     drawPlayer();
 
@@ -241,9 +289,7 @@ function gameLoop(currentTime) {
     drawBoss();
 
 
-    // ========================================================================
-    // PROYECTILES
-    // ========================================================================
+    // Dibujar proyectiles.
 
     drawBullets();
 
@@ -252,9 +298,7 @@ function gameLoop(currentTime) {
     drawBossProjectiles();
 
 
-    // ========================================================================
-    // OBJETOS
-    // ========================================================================
+    // Dibujar objetos.
 
     drawDroppedKeys();
 
@@ -265,9 +309,7 @@ function gameLoop(currentTime) {
     drawBrightHearts();
 
 
-    // ========================================================================
-    // INTERFAZ
-    // ========================================================================
+    // Dibujar interfaz.
 
     drawHealth();
 
@@ -282,14 +324,16 @@ function gameLoop(currentTime) {
     drawPharmacyUnlockNotice();
 
 
-    // ========================================================================
-    // ESTADOS FINALES
-    // ========================================================================
+    // Dibujar pantallas y menús.
 
     drawGameOver();
 
     drawVictory();
 
+    drawElevatorDialog();
+
+
+    // Solicitar el siguiente frame.
 
     requestAnimationFrame(
         gameLoop
@@ -297,4 +341,10 @@ function gameLoop(currentTime) {
 }
 
 
-requestAnimationFrame(gameLoop);
+// ============================================================================
+// INICIAR JUEGO
+// ============================================================================
+
+requestAnimationFrame(
+    gameLoop
+);

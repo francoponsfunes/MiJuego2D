@@ -1,6 +1,5 @@
 // ============================================================================
-// CORE.JS
-// Elementos base del juego
+// CORE.JS - Elementos principales del juego.
 // ============================================================================
 
 const canvas = document.getElementById("gameCanvas");

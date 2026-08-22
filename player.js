@@ -1,5 +1,5 @@
 // ============================================================================
-// JUGADOR
+// PLAYER.JS - Estado, controles, movimiento, disparos y vida del jugador.
 // ============================================================================
 
 const player = {
@@ -11,200 +11,464 @@ const player = {
     color: "white"
 };
 
-// ============================================================================
-// BALANCE DE MOVIMIENTO
-// ============================================================================
-
 const PLAYER_SPEED_MULTIPLIER = 0.72;
 
-// ============================================================================
-// VIDA Y ESTADOS DEL JUGADOR
-// ============================================================================
+const PLAYER_SHOOT_DIRECTIONS = [
+    "ArrowUp",
+    "ArrowDown",
+    "ArrowLeft",
+    "ArrowRight"
+];
+
+const keys = {};
+
+const shootCooldown = 250;
 
 let playerMaxHealth = 3;
 let playerHealth = playerMaxHealth;
+
 let movementDisabledUntil = 0;
 let invulnerableUntil = 0;
+
 let playerKnockbackX = 0;
 let playerKnockbackY = 0;
+
+let nextShotTime = 0;
+let shootingDirection = null;
+
+
 // ============================================================================
 // CONTROLES
 // ============================================================================
-
-const keys = {};
 
 document.addEventListener("keydown", (event) => {
 
     keys[event.key.toLowerCase()] = true;
 
-    // Reiniciar cuando aparece ALPISTE
-    if (event.key === "Enter" && gameOver) {
+    if (
+        event.key === "Enter" &&
+        gameOver
+    ) {
+
         restartGame();
-        victory = false;
+
         return;
     }
 
-    // Evitar que las flechas muevan la página
     if (
-        event.key === "ArrowUp" ||
-        event.key === "ArrowDown" ||
-        event.key === "ArrowLeft" ||
-        event.key === "ArrowRight"
+        event.code === "Space" ||
+        event.code === "ShiftRight"
     ) {
+
+        event.preventDefault();
+
+        if (!event.repeat) {
+
+            launchBoomerang();
+        }
+
+        return;
+    }
+
+    if (
+        PLAYER_SHOOT_DIRECTIONS.includes(event.key)
+    ) {
+
         event.preventDefault();
 
         if (!gameOver) {
+
             shoot(event.key);
         }
     }
 });
 
+
 document.addEventListener("keyup", (event) => {
+
     keys[event.key.toLowerCase()] = false;
 });
 
 
 // ============================================================================
-// DISPARO DEL JUGADOR
+// DISPAROS
 // ============================================================================
-
-let canShoot = true;
-const shootCooldown = 250;
 
 function shoot(direction) {
 
-    if (!canShoot || gameOver || victory) {
+    if (
+        !PLAYER_SHOOT_DIRECTIONS.includes(direction)
+    ) {
+
+        return false;
+    }
+
+    shootingDirection = direction;
+
+    player.aimDirection = direction;
+
+    if (
+        gameOver ||
+        victory
+    ) {
+
+        return false;
+    }
+
+    const now = performance.now();
+
+    if (
+        now < nextShotTime
+    ) {
+
+        return false;
+    }
+
+    bullets.push({
+
+        x:
+            player.x +
+            player.width / 2 -
+            5,
+
+        y:
+            player.y +
+            player.height / 2 -
+            5,
+
+        width: 10,
+
+        height: 10,
+
+        speed: 7,
+
+        direction
+    });
+
+    nextShotTime =
+
+        nextShotTime > 0 &&
+        now - nextShotTime < shootCooldown
+
+            ? nextShotTime + shootCooldown
+
+            : now + shootCooldown;
+
+    return true;
+}
+
+
+function updatePlayerShooting() {
+
+    if (
+        gameOver ||
+        victory
+    ) {
+
         return;
     }
 
-    canShoot = false;
+    if (
 
-    const bullet = {
-        x: player.x + player.width / 2 - 5,
-        y: player.y + player.height / 2 - 5,
-        width: 10,
-        height: 10,
-        speed: 7,
-        direction: direction
-    };
+        !shootingDirection ||
 
-    bullets.push(bullet);
+        !keys[
+            shootingDirection.toLowerCase()
+        ]
 
-    setTimeout(() => {
-        canShoot = true;
-    }, shootCooldown);
+    ) {
+
+        shootingDirection =
+
+            PLAYER_SHOOT_DIRECTIONS.find((direction) =>
+
+                keys[
+                    direction.toLowerCase()
+                ]
+
+            ) || null;
+    }
+
+    if (
+        shootingDirection
+    ) {
+
+        shoot(
+            shootingDirection
+        );
+    }
 }
+
+
+// ============================================================================
+// MOVIMIENTO Y KNOCKBACK
+// ============================================================================
+
 function updatePlayer(deltaTime = 1) {
 
     const movementDisabled =
-        performance.now() < movementDisabledUntil;
+
+        performance.now() <
+
+        movementDisabledUntil;
+
+    if (
+        !movementDisabled
+    ) {
+
+        const movementX =
+
+            Number(
+                Boolean(keys.d)
+            ) -
+
+            Number(
+                Boolean(keys.a)
+            );
+
+        const movementY =
+
+            Number(
+                Boolean(keys.s)
+            ) -
+
+            Number(
+                Boolean(keys.w)
+            );
+
+        const movementLength =
+            Math.hypot(
+
+                movementX,
+
+                movementY
+            );
+
+        if (
+            movementLength > 0
+        ) {
+
+            const directionX =
+
+                movementX /
+
+                movementLength;
+
+            const directionY =
+
+                movementY /
+
+                movementLength;
+
+            player.boomerangAimX =
+                directionX;
+
+            player.boomerangAimY =
+                directionY;
+
+            const shootingKeyPressed =
+
+                shootingDirection &&
+
+                keys[
+                    shootingDirection.toLowerCase()
+                ];
+
+            if (
+                !shootingKeyPressed
+            ) {
+
+                const currentDirectionMatchesMovement =
+
+                    (
+                        player.aimDirection === "ArrowLeft" &&
+                        movementX < 0
+                    ) ||
+
+                    (
+                        player.aimDirection === "ArrowRight" &&
+                        movementX > 0
+                    ) ||
+
+                    (
+                        player.aimDirection === "ArrowUp" &&
+                        movementY < 0
+                    ) ||
+
+                    (
+                        player.aimDirection === "ArrowDown" &&
+                        movementY > 0
+                    );
+
+                if (
+                    !currentDirectionMatchesMovement
+                ) {
+
+                    player.aimDirection =
+
+                        movementX !== 0
+
+                            ? movementX > 0
+
+                                ? "ArrowRight"
+
+                                : "ArrowLeft"
+
+                            : movementY > 0
+
+                                ? "ArrowDown"
+
+                                : "ArrowUp";
+                }
+            }
+
+            const movementSpeed =
+
+                player.speed *
+
+                PLAYER_SPEED_MULTIPLIER *
+
+                deltaTime;
+
+            player.x +=
+
+                directionX *
+
+                movementSpeed;
+
+            player.y +=
+
+                directionY *
+
+                movementSpeed;
+        }
+    }
 
 
-    // ========================================================================
-    // MOVIMIENTO NORMAL
-    // ========================================================================
+    // Aplicar retroceso.
 
-    const movementSpeed =
-        player.speed *
-        PLAYER_SPEED_MULTIPLIER *
+    player.x +=
+
+        playerKnockbackX *
+
         deltaTime;
 
-    if (!movementDisabled) {
+    player.y +=
 
-        if (keys["w"]) {
-            player.y -= movementSpeed;
-        }
+        playerKnockbackY *
 
-        if (keys["s"]) {
-            player.y += movementSpeed;
-        }
+        deltaTime;
 
-        if (keys["a"]) {
-            player.x -= movementSpeed;
-        }
+    const damping =
+        Math.pow(
 
-        if (keys["d"]) {
-            player.x += movementSpeed;
-        }
-    }
+            0.82,
 
+            deltaTime
+        );
 
-    // ========================================================================
-    // KNOCKBACK
-    // ========================================================================
+    playerKnockbackX *=
+        damping;
 
-    player.x += playerKnockbackX * deltaTime;
-    player.y += playerKnockbackY * deltaTime;
+    playerKnockbackY *=
+        damping;
 
-    const knockbackDamping =
-        Math.pow(0.82, deltaTime);
+    if (
 
-    playerKnockbackX *= knockbackDamping;
-    playerKnockbackY *= knockbackDamping;
+        Math.abs(
+            playerKnockbackX
+        ) < 0.05
 
+    ) {
 
-    // Cortar valores casi invisibles.
-    if (Math.abs(playerKnockbackX) < 0.05) {
         playerKnockbackX = 0;
-    }
-
-    if (Math.abs(playerKnockbackY) < 0.05) {
-        playerKnockbackY = 0;
-    }
-
-
-    // ========================================================================
-    // LÍMITES DE LA HABITACIÓN
-    // ========================================================================
-
-    if (player.x < 0) {
-
-        player.x = 0;
-        playerKnockbackX = 0;
-    }
-
-    if (player.y < 0) {
-
-        player.y = 0;
-        playerKnockbackY = 0;
     }
 
     if (
-        player.x + player.width >
-        canvas.width
+
+        Math.abs(
+            playerKnockbackY
+        ) < 0.05
+
+    ) {
+
+        playerKnockbackY = 0;
+    }
+
+
+    // Mantener al jugador dentro de la sala.
+
+    const limitedX =
+        Math.max(
+
+            0,
+
+            Math.min(
+
+                canvas.width -
+                player.width,
+
+                player.x
+            )
+        );
+
+    const limitedY =
+        Math.max(
+
+            0,
+
+            Math.min(
+
+                canvas.height -
+                player.height,
+
+                player.y
+            )
+        );
+
+    if (
+        limitedX !== player.x
     ) {
 
         player.x =
-            canvas.width -
-            player.width;
+            limitedX;
 
-        playerKnockbackX = 0;
+        playerKnockbackX =
+            0;
     }
 
     if (
-        player.y + player.height >
-        canvas.height
+        limitedY !== player.y
     ) {
 
         player.y =
-            canvas.height -
-            player.height;
+            limitedY;
 
-        playerKnockbackY = 0;
+        playerKnockbackY =
+            0;
     }
+
+    updatePlayerShooting();
 }
+
+
 // ============================================================================
 // DIBUJAR JUGADOR
 // ============================================================================
 
 function drawPlayer() {
 
-    ctx.fillStyle = player.color;
+    ctx.fillStyle =
+        player.color;
 
     ctx.fillRect(
+
         player.x,
+
         player.y,
+
         player.width,
+
         player.height
     );
 }
@@ -220,211 +484,261 @@ function drawHealth() {
     const startX = 20;
     const startY = 28;
 
-    for (let i = 0; i < playerMaxHealth; i++) {
+    ctx.font =
+        "24px Arial";
 
-        const heartX = startX + i * heartSize;
+    ctx.textAlign =
+        "left";
 
-        // Vida restante para este corazón
-        const heartHealth = playerHealth - i;
+    ctx.textBaseline =
+        "middle";
 
-        // Corazón completo
-        if (heartHealth >= 1) {
+    for (
 
-            ctx.font = "24px Arial";
-            ctx.textAlign = "left";
-            ctx.textBaseline = "middle";
+        let index = 0;
 
-            ctx.fillText(
-                "❤️",
-                heartX,
-                startY
-            );
+        index < playerMaxHealth;
+
+        index++
+
+    ) {
+
+        const heartHealth =
+
+            playerHealth -
+
+            index;
+
+        if (
+            heartHealth <= 0
+        ) {
+
+            continue;
         }
 
-        // Medio corazón
-        else if (heartHealth === 0.5) {
+        const heartX =
 
-            ctx.font = "24px Arial";
-            ctx.textAlign = "left";
-            ctx.textBaseline = "middle";
+            startX +
 
-            // Dibujar corazón completo primero
-            ctx.fillText(
-                "❤️",
-                heartX,
-                startY
-            );
+            index *
 
-            // Ocultar la mitad derecha
-            ctx.fillStyle = rooms[currentRoom].color;
+            heartSize;
+
+        ctx.fillText(
+
+            "❤️",
+
+            heartX,
+
+            startY
+        );
+
+        if (
+            heartHealth === 0.5
+        ) {
+
+            ctx.fillStyle =
+
+                rooms[currentRoom]
+                    .color;
 
             ctx.fillRect(
+
                 heartX + 12,
+
                 startY - 14,
+
                 14,
+
                 28
             );
 
-            // Pequeño borde
-            ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+            ctx.strokeStyle =
+                "rgba(255, 255, 255, 0.15)";
 
             ctx.strokeRect(
+
                 heartX + 12,
+
                 startY - 14,
+
                 14,
+
                 28
             );
         }
     }
 
-    ctx.textAlign = "left";
-    ctx.textBaseline = "alphabetic";
+    ctx.textAlign =
+        "left";
+
+    ctx.textBaseline =
+        "alphabetic";
 }
+
+
 // ============================================================================
-// KNOCKBACK DEL JUGADOR
+// RETROCESO DEL JUGADOR
 // ============================================================================
 
 function applyPlayerKnockback(
+
     sourceX,
+
     sourceY,
+
     force = 7
+
 ) {
 
     if (
+
         typeof sourceX !== "number" ||
+
         typeof sourceY !== "number"
+
     ) {
+
         return;
     }
 
-
-    const playerCenterX =
-        player.x +
-        player.width / 2;
-
-    const playerCenterY =
-        player.y +
-        player.height / 2;
-
-
     const dx =
-        playerCenterX -
+
+        player.x +
+
+        player.width / 2 -
+
         sourceX;
 
     const dy =
-        playerCenterY -
+
+        player.y +
+
+        player.height / 2 -
+
         sourceY;
 
-
     const distance =
+
         Math.sqrt(
+
             dx * dx +
+
             dy * dy
+
         ) || 1;
 
-
     playerKnockbackX =
-        (dx / distance) *
+
+        dx /
+
+        distance *
+
         force;
 
     playerKnockbackY =
-        (dy / distance) *
+
+        dy /
+
+        distance *
+
         force;
 }
+
+
+// ============================================================================
+// DAÑO PROVOCADO POR UN ENEMIGO
+// ============================================================================
+
 function damagePlayerFromEntity(
+
     amount,
+
     entity,
+
     knockbackForce = 7
+
 ) {
 
-    const sourceX =
-        entity.x +
-        entity.width / 2;
-
-    const sourceY =
-        entity.y +
-        entity.height / 2;
-
-
     damagePlayer(
+
         amount,
-        sourceX,
-        sourceY,
+
+        entity.x +
+        entity.width / 2,
+
+        entity.y +
+        entity.height / 2,
+
         knockbackForce
     );
 }
+
+
 // ============================================================================
 // DAÑO DEL JUGADOR
 // ============================================================================
 
 function damagePlayer(
+
     amount,
+
     sourceX = null,
+
     sourceY = null,
+
     knockbackForce = 7
+
 ) {
 
-    if (gameOver || victory) {
+    if (
+
+        gameOver ||
+
+        victory ||
+
+        performance.now() <
+            invulnerableUntil
+
+    ) {
+
         return false;
     }
 
+    playerHealth =
+        Math.max(
 
-    // ========================================================================
-    // INVULNERABILIDAD
-    // ========================================================================
+            0,
+
+            playerHealth -
+            amount
+        );
 
     if (
-        performance.now() <
-        invulnerableUntil
+        playerHealth === 0
     ) {
-        return false;
-    }
-
-
-    // ========================================================================
-    // DAÑO
-    // ========================================================================
-
-    playerHealth -= amount;
-
-    if (playerHealth < 0) {
-        playerHealth = 0;
-    }
-
-
-    // ========================================================================
-    // MUERTE
-    // ========================================================================
-
-    if (playerHealth <= 0) {
-
-        playerHealth = 0;
 
         gameOver = true;
+
         victory = false;
 
         return true;
     }
 
-
-    // ========================================================================
-    // INVULNERABILIDAD
-    // ========================================================================
-
     invulnerableUntil =
+
         performance.now() +
+
         600;
 
+    applyPlayerKnockback(
 
-    // ========================================================================
-    // KNOCKBACK
-    // ========================================================================
+        sourceX,
 
-   applyPlayerKnockback(
-    sourceX,
-    sourceY,
-    knockbackForce
-);
+        sourceY,
+
+        knockbackForce
+    );
 
     return true;
 }
