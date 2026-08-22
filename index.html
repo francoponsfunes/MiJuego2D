@@ -1,28 +1,46 @@
 <!DOCTYPE html>
+
 <html lang="es">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Juego</title>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>The last cigarette</title>
 
     <style>
+
         body {
+
             margin: 0;
+
             background: #111;
+
             display: flex;
+
             justify-content: center;
+
             align-items: center;
+
             min-height: 100vh;
+
             overflow: hidden;
         }
 
         canvas {
+
             display: block;
+
             background: #222;
         }
+
     </style>
+
 </head>
 
 <body>
@@ -35,24 +53,86 @@
 
 
     <!-- ================================================================ -->
-    <!-- JAVASCRIPT -->
+    <!-- CARGA DEL JUEGO SIN UTILIZAR VERSIONES ANTIGUAS EN CACHÉ -->
     <!-- ================================================================ -->
 
-    <script src="core.js"></script>
+    <script>
 
-    <script src="projectiles.js"></script>
-    <script src="player.js"></script>
-    <script src="items.js"></script>
+        const gameVersion = Date.now();
 
-    <script src="enemies.js"></script>
-    <script src="bosses.js"></script>
+        const gameScripts = [
 
-    <script src="rooms.js"></script>
-    <script src="collisions.js"></script>
+            "core.js",
 
-    <script src="ui.js"></script>
+            "projectiles.js",
 
-    <script src="game.js"></script>
+            "player.js",
+
+            "items.js",
+
+            "enemies.js",
+
+            "bosses.js",
+
+            "rooms.js",
+
+            "collisions.js",
+
+            "ui.js",
+
+            "game.js"
+        ];
+
+
+        function loadGameScript(scriptIndex = 0) {
+
+            if (
+                scriptIndex >=
+                gameScripts.length
+            ) {
+
+                return;
+            }
+
+
+            const script =
+                document.createElement("script");
+
+
+            script.src =
+                gameScripts[scriptIndex] +
+                "?v=" +
+                gameVersion;
+
+
+            script.onload = () => {
+
+                loadGameScript(
+                    scriptIndex + 1
+                );
+            };
+
+
+            script.onerror = () => {
+
+                console.error(
+
+                    "No se pudo cargar el archivo del juego:",
+
+                    gameScripts[scriptIndex]
+                );
+            };
+
+
+            document.body.appendChild(
+                script
+            );
+        }
+
+
+        loadGameScript();
+
+    </script>
 
 </body>
 
