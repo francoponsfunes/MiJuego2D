@@ -9,12 +9,10 @@
 // ============================================================================
 
 let playerKeys = 0;
-let brightHeartsCollected = 0;
 
 const droppedKeys = [];
 const droppedHalfHearts = [];
 const droppedBossItems = [];
-const droppedBrightHearts = [];
 
 // ============================================================================
 // CREAR DROPS
@@ -77,109 +75,6 @@ function dropBoomerang(x, y) {
 
         room: currentRoom
     });
-}
-
-
-// ============================================================================
-// CORAZÓN BRILLANTE DE LA FARMACIA
-// ============================================================================
-
-function ensureBrightHeartInPharmacy() {
-
-    const room = rooms[currentRoom];
-
-    if (
-        !room ||
-        room.type !== "pharmacy" ||
-        room.rewardCollected
-    ) {
-        return;
-    }
-
-    const alreadyExists =
-        droppedBrightHearts.some((heart) =>
-            heart.room === currentRoom
-        );
-
-    if (alreadyExists) {
-        return;
-    }
-
-    droppedBrightHearts.push({
-        x: canvas.width / 2 - 18,
-        y: canvas.height / 2 - 18,
-        width: 36,
-        height: 36,
-        room: currentRoom
-    });
-}
-
-
-function drawBrightHearts() {
-
-    droppedBrightHearts.forEach((heart) => {
-
-        if (heart.room !== currentRoom) {
-            return;
-        }
-
-        ctx.save();
-
-        ctx.shadowColor = "rgba(255, 240, 110, 0.95)";
-        ctx.shadowBlur = 20;
-        ctx.font = "34px Arial";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-
-        ctx.fillText(
-            "💖",
-            heart.x + heart.width / 2,
-            heart.y + heart.height / 2
-        );
-
-        ctx.restore();
-    });
-}
-
-
-function checkBrightHeartPickup() {
-
-    for (
-        let index = droppedBrightHearts.length - 1;
-        index >= 0;
-        index--
-    ) {
-
-        const heart = droppedBrightHearts[index];
-
-        if (heart.room !== currentRoom) {
-            continue;
-        }
-
-        const colliding =
-            player.x < heart.x + heart.width &&
-            player.x + player.width > heart.x &&
-            player.y < heart.y + heart.height &&
-            player.y + player.height > heart.y;
-
-        if (!colliding) {
-            continue;
-        }
-
-        playerMaxHealth += 1;
-        playerHealth = Math.min(
-            playerMaxHealth,
-            playerHealth + 1
-        );
-
-        brightHeartsCollected++;
-        rooms[currentRoom].rewardCollected = true;
-
-        droppedBrightHearts.splice(index, 1);
-
-        // En niveles con Farmacia, recoger la recompensa cierra el nivel.
-        showVictory();
-    }
 }
 // ============================================================================
 // CONTADOR DE LLAVES
@@ -310,7 +205,7 @@ function checkHalfHeartPickup() {
             player.y + player.height > heart.y
         ) {
 
-            if (playerHealth < playerMaxHealth) {
+            if (playerHealth < 3) {
 
                 healPlayer(0.5);
 
@@ -382,7 +277,7 @@ function checkBossDropPickup() {
 
             if (item.type === "heart") {
 
-                if (playerHealth < playerMaxHealth) {
+                if (playerHealth < 3) {
 
                     healPlayer(1);
 
@@ -406,7 +301,7 @@ function healPlayer(amount) {
 
     playerHealth += amount;
 
-    if (playerHealth > playerMaxHealth) {
-        playerHealth = playerMaxHealth;
+    if (playerHealth > 3) {
+        playerHealth = 3;
     }
 }

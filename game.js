@@ -20,11 +20,9 @@ function restartGame() {
     droppedKeys.length = 0;
     droppedHalfHearts.length = 0;
     droppedBossItems.length = 0;
-    droppedBrightHearts.length = 0;
 
     bullets.length = 0;
     enemyProjectiles.length = 0;
-    bossProjectiles.length = 0;
 
 
     // ========================================================================
@@ -37,16 +35,13 @@ function restartGame() {
     player.y =
         canvas.height / 2 - 20;
 
-    playerMaxHealth = 3;
-    playerHealth = playerMaxHealth;
+    playerHealth = 3;
     playerKeys = 0;
-    brightHeartsCollected = 0;
+playerKnockbackX = 0;
+playerKnockbackY = 0;
 
-    playerKnockbackX = 0;
-    playerKnockbackY = 0;
-
-    invulnerableUntil = 0;
-    movementDisabledUntil = 0;
+invulnerableUntil = 0;
+movementDisabledUntil = 0;
     
 
 
@@ -60,7 +55,21 @@ function restartGame() {
 
     bossDoorUnlocked = false;
 
-    resetRoomsForNewRun();
+    currentRoom = 1;
+    changingRoom = false;
+
+
+    // ========================================================================
+    // HABITACIONES
+    // ========================================================================
+
+    for (let roomNumber = 1; roomNumber <= 5; roomNumber++) {
+
+        rooms[roomNumber].cleared = false;
+
+        rooms[roomNumber].visited =
+            roomNumber === 1;
+    }
 
 
     // ========================================================================
@@ -80,22 +89,19 @@ function restartGame() {
 
     boss.health =
         boss.maxHealth;
-
-    boss.assistantCommandTimer = 90;
-    boss.assistantTurn = 0;
-    boss.anesthesiaImmunityUntil = 0;
-    boss.attackSequence = 0;
+        boss.assistantCommandTimer = 90;
+boss.assistantTurn = 0;
+boss.anesthesiaImmunityUntil = 0;
+boss.attackSequence = 0;
 
 
     // ========================================================================
     // GENERAR SALA INICIAL
     // ========================================================================
 
-    if (!rooms[currentRoom].cleared) {
-        spawnEnemies(
-            rooms[currentRoom].enemyCount
-        );
-    }
+    spawnEnemies(
+        rooms[1].enemyCount
+    );
 }
 // ============================================================================
 // GAME LOOP
@@ -162,7 +168,6 @@ function gameLoop(currentTime) {
         checkKeyPickup();
         checkHalfHeartPickup();
         checkBossDropPickup();
-        checkBrightHeartPickup();
 
 
         // Salas
@@ -204,7 +209,6 @@ function gameLoop(currentTime) {
     drawDroppedKeys();
     drawDroppedHalfHearts();
     drawBossDrops();
-    drawBrightHearts();
 
 
     // ========================================================================
@@ -218,7 +222,6 @@ function gameLoop(currentTime) {
 
     drawRoomInfo();
     drawMinimap();
-    drawPharmacyUnlockNotice();
 
 
     // ========================================================================

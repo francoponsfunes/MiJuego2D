@@ -21,8 +21,7 @@ const PLAYER_SPEED_MULTIPLIER = 0.65;
 // VIDA Y ESTADOS DEL JUGADOR
 // ============================================================================
 
-let playerMaxHealth = 3;
-let playerHealth = playerMaxHealth;
+let playerHealth = 3;
 let movementDisabledUntil = 0;
 let invulnerableUntil = 0;
 let playerKnockbackX = 0;
@@ -216,11 +215,12 @@ function drawPlayer() {
 
 function drawHealth() {
 
+    const maxHealth = 3;
     const heartSize = 28;
     const startX = 20;
     const startY = 28;
 
-    for (let i = 0; i < playerMaxHealth; i++) {
+    for (let i = 0; i < maxHealth; i++) {
 
         const heartX = startX + i * heartSize;
 
