@@ -29,7 +29,7 @@ const enemies = [];
 
 // Creación y configuración de enemigos.
 function createEnemy(config) {
-    const enemy = {
+    return {
         width: 40,
         height: 40,
         touchingPlayer: false,
@@ -38,17 +38,7 @@ function createEnemy(config) {
         knockbackY: 0,
         ...config
     };
-
-    if (
-        enemy.type === "stretcherBearer" &&
-        Number.isFinite(enemy.chargeSpeed)
-    ) {
-        enemy.chargeSpeed *= 0.93;
-    }
-
-    return enemy;
 }
-
 function spawnEnemyGroup(amount, configFactory) {
     for (let i = 0; i < amount; i++) {
         enemies.push(createEnemy(configFactory(i)));
