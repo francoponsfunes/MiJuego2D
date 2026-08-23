@@ -2828,19 +2828,19 @@ function createStretcherBearerConfig() {
         y: 105,
         width: 48,
         height: 52,
-        speed: 2.4,
+        speed: 2.1,
         health: 7,
         maxHealth: 7,
         color: "#d89962",
         knockbackResistance: 2.2,
         stretcherState: "reposition",
-        stateTimer: 21,
-        repositionDuration: 27,
-        windupDuration: 17,
-        recoverDuration: 22,
-        preferredDistance: 190,
+        stateTimer: 34,
+        repositionDuration: 43,
+        windupDuration: 24,
+        recoverDuration: 36,
+        preferredDistance: 205,
         orbitDirection: 1,
-        chargeSpeed: 8.55,
+        chargeSpeed: 7.2,
         chargeX: 0,
         chargeY: 0,
         chargeTargetX: player.x + player.width / 2,
@@ -2866,268 +2866,139 @@ function spawnTransferIntroductionEnemies() {
     enemies.push(createEnemy(leper));
 }
 function spawnTransferCorridorEnemies() {
+    const stretcher = createStretcherBearerConfig();
 
-    // ============================================================
-    // CAMILLERO
-    // ============================================================
-
-    const stretcher =
-        createStretcherBearerConfig();
-
-    stretcher.x =
-        canvas.width / 2 + 75;
-
+    stretcher.x = canvas.width / 2 + 75;
     stretcher.y = 95;
+    stretcher.stateTimer = 34;
+    stretcher.repositionDuration = 46;
+    stretcher.windupDuration = 26;
+    stretcher.recoverDuration = 38;
+    stretcher.chargeSpeed = 6.9;
 
-    stretcher.stateTimer = 19;
+    enemies.push(createEnemy(stretcher));
 
-    stretcher.repositionDuration = 25;
+    const leper = createLeperConfig(0);
 
-    stretcher.recoverDuration = 20;
-
-    // Embestida aproximadamente un 5 % más lenta.
-    stretcher.chargeSpeed = 8.15;
-
-    enemies.push(
-        createEnemy(stretcher)
-    );
-
-
-    // ============================================================
-    // LEPROSO INTERCEPTOR
-    // ============================================================
-
-    const leper =
-        createLeperConfig(0);
-
-    leper.x =
-        canvas.width / 2 - 55;
-
-    leper.y =
-        canvas.height - 115;
-
+    leper.x = canvas.width / 2 - 55;
+    leper.y = canvas.height - 115;
     leper.flankSide = 1;
-
     leper.leperTimer = 27;
-
     leper.transferHunter = true;
-
     leper.transferRushSpeed = 3.75;
+    leper.transferTargetX = player.x + player.width / 2;
+    leper.transferTargetY = player.y + player.height / 2;
 
-    leper.transferTargetX =
-        player.x + player.width / 2;
-
-    leper.transferTargetY =
-        player.y + player.height / 2;
+    enemies.push(createEnemy(leper));
 
     enemies.push(
-        createEnemy(leper)
-    );
-
-
-    // ============================================================
-    // CIRUJANO
-    // ============================================================
-
-    enemies.push(
-
         createEnemy({
-
             type: "surgeon",
-
             corridorSupport: true,
-
             x: canvas.width - 140,
-
             y: canvas.height - 140,
-
             width: 44,
-
             height: 44,
-
             speed: 1.35,
-
             health: 7,
-
             maxHealth: 7,
-
             color: "#e7bc68",
-
             knockbackResistance: 2,
-
             movementX: 0,
-
             movementY: 0,
-
             movementSpeed: 1.55,
-
             strafeDirection: -1,
-
             strafeTimer: 82,
-
             minimumDistance: 155,
-
             maximumDistance: 310,
-
             aimWarningDuration: 18,
-
             shootTimer: 48,
-
             shootCooldown: 78,
-
             commandVolleyState: "idle",
-
             commandVolleyTimer: 0,
-
             commandVolleySpread: 0.2,
-
             commandVolleyCount: 0,
-
             corridorShotsFired: 0,
-
             coordinatedShotCount: 0,
-
             corridorShotScheduled: false,
-
             corridorShotsSinceFan: 0,
-
             corridorFanCount: 0,
-
             fanAttackPending: false,
-
             lastCorridorAttack: null
         })
     );
 }
 function spawnInpatientJunctionEnemies() {
-
-    // Tiempo inicial para que el jugador pueda ubicarse.
     rooms[currentRoom].junctionAttackPauseUntil =
         performance.now() + 520;
 
-    // El camillero inicia la rotación.
-    rooms[currentRoom].junctionNextAttacker =
-        "stretcherBearer";
+    rooms[currentRoom].junctionNextAttacker = "stretcherBearer";
 
     rooms[currentRoom].junctionTurnExpiresAt =
         performance.now() + 2400;
 
+    const guard = createSecurityGuardConfig();
 
-    // ============================================================
-    // CELADOR
-    // ============================================================
-
-    const guard =
-        createSecurityGuardConfig();
-
-    guard.x =
-        canvas.width / 2 -
-        (guard.width || 48) / 2;
-
-    guard.y =
-        canvas.height / 2 - 105;
-
+    guard.x = canvas.width / 2 - (guard.width || 48) / 2;
+    guard.y = canvas.height / 2 - 105;
     guard.inpatientJunctionGuard = true;
-
     guard.junctionFlankSide = 1;
 
-    if (
-        Number.isFinite(guard.guardTimer)
-    ) {
+    if (Number.isFinite(guard.guardTimer)) {
+        guard.guardTimer = Math.max(guard.guardTimer, 48);
 
-        guard.guardTimer = Math.max(
-            guard.guardTimer,
-            48
-        );
-
-    } else if (
-        Number.isFinite(guard.stateTimer)
-    ) {
-
-        guard.stateTimer = Math.max(
-            guard.stateTimer,
-            48
-        );
+    } else if (Number.isFinite(guard.stateTimer)) {
+        guard.stateTimer = Math.max(guard.stateTimer, 48);
     }
 
-    enemies.push(
-        createEnemy(guard)
-    );
+    enemies.push(createEnemy(guard));
 
+    const stretcher = createStretcherBearerConfig();
 
-    // ============================================================
-    // CAMILLERO
-    // ============================================================
-
-    const stretcher =
-        createStretcherBearerConfig();
-
-    stretcher.x =
-        canvas.width - 170;
-
+    stretcher.x = canvas.width - 170;
     stretcher.y = 95;
-
-    stretcher.stateTimer = 38;
-
-    stretcher.repositionDuration = 42;
-
-    stretcher.recoverDuration = 40;
-
-    stretcher.windupDuration = 22;
-
-    stretcher.chargeSpeed = 7.50;
-
+    stretcher.stateTimer = 42;
+    stretcher.repositionDuration = 52;
+    stretcher.recoverDuration = 46;
+    stretcher.windupDuration = 27;
+    stretcher.chargeSpeed = 6.65;
     stretcher.inpatientJunctionStretcher = true;
 
-    enemies.push(
-        createEnemy(stretcher)
-    );
+    enemies.push(createEnemy(stretcher));
 
-
-    // ============================================================
-    // ENFERMERA
-    // ============================================================
-
-    const escort =
-        createSecurityEscortConfig(0);
+    const escort = createSecurityEscortConfig(0);
 
     escort.x = 110;
-
     escort.y = 130;
-
     escort.securityEscort = true;
-
     escort.inpatientJunctionEscort = true;
-
     escort.flankSide = -1;
 
-    if (
-        Number.isFinite(escort.nurseTimer)
-    ) {
-
-        escort.nurseTimer = Math.max(
-            58,
-            escort.nurseTimer
-        );
+    if (Number.isFinite(escort.nurseTimer)) {
+        escort.nurseTimer = Math.max(58, escort.nurseTimer);
     }
 
-    enemies.push(
-        createEnemy(escort)
-    );
+    enemies.push(createEnemy(escort));
 }
 function updateStretcherBearer(enemy, deltaTime) {
     const enemyX = enemy.x + enemy.width / 2;
     const enemyY = enemy.y + enemy.height / 2;
+
     const playerX = player.x + player.width / 2;
     const playerY = player.y + player.height / 2;
+
     const distanceX = playerX - enemyX;
     const distanceY = playerY - enemyY;
-    const distance = Math.hypot(distanceX, distanceY) || 1;
+
+    const distance =
+        Math.hypot(distanceX, distanceY) || 1;
+
     const directionX = distanceX / distance;
     const directionY = distanceY / distance;
 
     const escort = enemies.find((candidate) =>
-        candidate.type === "leper" && candidate.transferHunter
+        candidate.type === "leper" &&
+        candidate.transferHunter
     );
 
     if (enemy.stretcherState === "reposition") {
@@ -3156,15 +3027,15 @@ function updateStretcherBearer(enemy, deltaTime) {
             ) {
                 enemy.stateTimer = Math.min(
                     enemy.stateTimer,
-                    10
+                    19
                 );
             }
         }
 
-        if (distance < 130) {
+        if (distance < 105) {
             enemy.stateTimer = Math.min(
                 enemy.stateTimer,
-                9
+                16
             );
         }
 
@@ -3184,23 +3055,20 @@ function updateStretcherBearer(enemy, deltaTime) {
         );
 
         let movementX =
-            orbitX * 0.58 +
-            directionX * distanceCorrection * 1.65;
+            orbitX * 0.52 +
+            directionX * distanceCorrection * 1.32;
 
         let movementY =
-            orbitY * 0.58 +
-            directionY * distanceCorrection * 1.65;
+            orbitY * 0.52 +
+            directionY * distanceCorrection * 1.32;
 
-        if (distance > 270) {
-            movementX += directionX * 1.15;
-            movementY += directionY * 1.15;
+        if (distance > 295) {
+            movementX += directionX * 0.82;
+            movementY += directionY * 0.82;
         }
 
         const movementDistance =
-            Math.hypot(
-                movementX,
-                movementY
-            ) || 1;
+            Math.hypot(movementX, movementY) || 1;
 
         enemy.x +=
             movementX /
@@ -3216,8 +3084,8 @@ function updateStretcherBearer(enemy, deltaTime) {
 
         if (
             enemy.stateTimer <= 0 &&
-            distance > 55 &&
-            distance < 520
+            distance > 78 &&
+            distance < 390
         ) {
             enemy.stretcherState = "windup";
             enemy.stateTimer = enemy.windupDuration;
@@ -3226,14 +3094,24 @@ function updateStretcherBearer(enemy, deltaTime) {
             enemy.chargeTargetY = playerY;
 
         } else if (enemy.stateTimer <= 0) {
-            enemy.stateTimer = 8;
+            enemy.stateTimer = 15;
         }
 
         return;
     }
 
     if (enemy.stretcherState === "windup") {
-        if (enemy.stateTimer > 4) {
+        const targetLockThreshold = Math.max(
+            10,
+            Math.round(
+                enemy.windupDuration * 0.46
+            )
+        );
+
+        if (
+            enemy.stateTimer >
+            targetLockThreshold
+        ) {
             const inputX =
                 Number(Boolean(keys.d)) -
                 Number(Boolean(keys.a));
@@ -3243,23 +3121,20 @@ function updateStretcherBearer(enemy, deltaTime) {
                 Number(Boolean(keys.w));
 
             const inputDistance =
-                Math.hypot(
-                    inputX,
-                    inputY
-                ) || 1;
+                Math.hypot(inputX, inputY) || 1;
 
             const travelFrames =
                 distance / enemy.chargeSpeed;
 
             const predictionDistance = Math.min(
-                138,
+                66,
                 (
                     travelFrames +
-                    Math.min(enemy.stateTimer, 7)
+                    Math.min(enemy.stateTimer, 5)
                 ) *
                     player.speed *
                     PLAYER_SPEED_MULTIPLIER *
-                    1.02
+                    0.55
             );
 
             let escapePressureX = 0;
@@ -3288,12 +3163,12 @@ function updateStretcherBearer(enemy, deltaTime) {
                 escapePressureX =
                     escapeX /
                     escapeDistance *
-                    20;
+                    9;
 
                 escapePressureY =
                     escapeY /
                     escapeDistance *
-                    20;
+                    9;
             }
 
             enemy.chargeTargetX = Math.max(
@@ -3302,8 +3177,8 @@ function updateStretcherBearer(enemy, deltaTime) {
                     canvas.width - 42,
                     playerX +
                         inputX /
-                        inputDistance *
-                        predictionDistance +
+                            inputDistance *
+                            predictionDistance +
                         escapePressureX
                 )
             );
@@ -3314,8 +3189,8 @@ function updateStretcherBearer(enemy, deltaTime) {
                     canvas.height - 42,
                     playerY +
                         inputY /
-                        inputDistance *
-                        predictionDistance +
+                            inputDistance *
+                            predictionDistance +
                         escapePressureY
                 )
             );
@@ -3345,12 +3220,12 @@ function updateStretcherBearer(enemy, deltaTime) {
             enemy.stretcherState = "charge";
 
             enemy.stateTimer = Math.max(
-                20,
+                16,
                 Math.min(
-                    72,
+                    54,
                     attackDistance /
                         enemy.chargeSpeed +
-                        11
+                        6
                 )
             );
         }
@@ -3372,7 +3247,10 @@ function updateStretcherBearer(enemy, deltaTime) {
             deltaTime;
 
         if (
-            areEntitiesColliding(player, enemy) &&
+            areEntitiesColliding(
+                player,
+                enemy
+            ) &&
             !enemy.chargeHit
         ) {
             enemy.chargeHit = true;
@@ -3385,7 +3263,10 @@ function updateStretcherBearer(enemy, deltaTime) {
             );
 
             enemy.stretcherState = "recover";
-            enemy.stateTimer = enemy.recoverDuration;
+
+            enemy.stateTimer =
+                enemy.recoverDuration;
+
             enemy.chargesCompleted++;
 
             return;
@@ -3404,7 +3285,11 @@ function updateStretcherBearer(enemy, deltaTime) {
             hitWall
         ) {
             enemy.stretcherState = "recover";
-            enemy.stateTimer = enemy.recoverDuration;
+
+            enemy.stateTimer =
+                enemy.recoverDuration +
+                (hitWall ? 7 : 0);
+
             enemy.chargesCompleted++;
         }
 
@@ -3416,12 +3301,12 @@ function updateStretcherBearer(enemy, deltaTime) {
 
         enemy.x -=
             directionX *
-            0.32 *
+            0.24 *
             deltaTime;
 
         enemy.y -=
             directionY *
-            0.32 *
+            0.24 *
             deltaTime;
 
         if (enemy.stateTimer <= 0) {
@@ -3429,7 +3314,7 @@ function updateStretcherBearer(enemy, deltaTime) {
 
             enemy.stateTimer =
                 enemy.repositionDuration +
-                Math.random() * 10;
+                Math.random() * 12;
 
             enemy.orbitDirection *= -1;
             enemy.chargeHit = false;
@@ -5360,136 +5245,77 @@ function getInpatientJunctionCombatState(enemy) {
         finishTurn
     };
 }
-function updateInpatientJunctionStretcher(enemy, deltaTime) {
-
+function updateInpatientJunctionStretcher(
+    enemy,
+    deltaTime
+) {
     const combat =
         getInpatientJunctionCombatState(enemy);
 
     const wasAttacking =
         combat.attacking;
 
-
-    // ============================================================
-    // ADAPTAR EL RITMO SEGÚN LOS ENEMIGOS RESTANTES
-    // ============================================================
-
     enemy.repositionDuration =
-
         combat.teammatesAlive >= 2
-
-            ? 42
-
+            ? 52
             : combat.teammatesAlive === 1
-
-                ? 34
-
-                : 27;
+                ? 44
+                : 36;
 
     enemy.recoverDuration =
-
         combat.teammatesAlive >= 2
-
-            ? 40
-
+            ? 46
             : combat.teammatesAlive === 1
-
-                ? 32
-
-                : 23;
+                ? 39
+                : 32;
 
     enemy.windupDuration =
-
         combat.teammatesAlive >= 2
-
-            ? 22
-
+            ? 27
             : combat.teammatesAlive === 1
-
-                ? 19
-
-                : 17;
-
-
-    // ============================================================
-    // ESPERAR SI OTRO ENEMIGO ESTÁ ACTUANDO
-    // ============================================================
+                ? 24
+                : 21;
 
     if (
-
         combat.blocked &&
-
         enemy.stretcherState === "reposition"
-
     ) {
-
         enemy.stateTimer = Math.max(
-
             enemy.stateTimer,
-
             combat.teammatesAlive >= 2
-
-                ? 13
-
-                : 8
+                ? 16
+                : 11
         );
     }
 
-
-    // Mantener el comportamiento original del camillero.
     updateStretcherBearer(
-
         enemy,
-
         deltaTime
     );
 
     const currentCombat =
         getInpatientJunctionCombatState(enemy);
 
-
-    // ============================================================
-    // EVITAR QUE SE SUPERPONGA CON OTRO ATAQUE
-    // ============================================================
-
     if (
-
         !wasAttacking &&
-
         combat.blocked &&
-
         currentCombat.attacking
-
     ) {
-
-        enemy.stretcherState =
-            "reposition";
+        enemy.stretcherState = "reposition";
 
         enemy.stateTimer =
-
             combat.teammatesAlive >= 2
-
-                ? 16
-
-                : 10;
+                ? 19
+                : 13;
 
         return;
     }
 
-
-    // ============================================================
-    // CEDER EL TURNO
-    // ============================================================
-
     if (
-
         wasAttacking &&
-
         !currentCombat.attacking &&
-
         currentCombat.teammatesAlive > 0
-
     ) {
-
         currentCombat.finishTurn();
     }
 }
