@@ -3001,6 +3001,18 @@ function spawnTransferCorridorEnemies() {
 }
 function spawnInpatientJunctionEnemies() {
 
+    // Tiempo inicial para que el jugador pueda ubicarse.
+    rooms[currentRoom].junctionAttackPauseUntil =
+        performance.now() + 520;
+
+    // El camillero inicia la rotación.
+    rooms[currentRoom].junctionNextAttacker =
+        "stretcherBearer";
+
+    rooms[currentRoom].junctionTurnExpiresAt =
+        performance.now() + 2400;
+
+
     // ============================================================
     // CELADOR
     // ============================================================
@@ -3019,6 +3031,25 @@ function spawnInpatientJunctionEnemies() {
 
     guard.junctionFlankSide = 1;
 
+    if (
+        Number.isFinite(guard.guardTimer)
+    ) {
+
+        guard.guardTimer = Math.max(
+            guard.guardTimer,
+            48
+        );
+
+    } else if (
+        Number.isFinite(guard.stateTimer)
+    ) {
+
+        guard.stateTimer = Math.max(
+            guard.stateTimer,
+            48
+        );
+    }
+
     enemies.push(
         createEnemy(guard)
     );
@@ -3036,13 +3067,14 @@ function spawnInpatientJunctionEnemies() {
 
     stretcher.y = 95;
 
-    stretcher.stateTimer = 29;
+    stretcher.stateTimer = 38;
 
-    stretcher.repositionDuration = 27;
+    stretcher.repositionDuration = 42;
 
-    stretcher.recoverDuration = 23;
+    stretcher.recoverDuration = 40;
 
-    // La embestida baja de 8.15 a 7.50 solamente en esta sala.
+    stretcher.windupDuration = 22;
+
     stretcher.chargeSpeed = 7.50;
 
     stretcher.inpatientJunctionStretcher = true;
@@ -3070,15 +3102,11 @@ function spawnInpatientJunctionEnemies() {
     escort.flankSide = -1;
 
     if (
-        Number.isFinite(
-            escort.nurseTimer
-        )
+        Number.isFinite(escort.nurseTimer)
     ) {
 
         escort.nurseTimer = Math.max(
-
-            36,
-
+            58,
             escort.nurseTimer
         );
     }
@@ -5124,187 +5152,358 @@ function updateTransferCorridorSurgeon(enemy, deltaTime) {
                 : 0
         );
 }
+function getInpatientJunctionCombatState(enemy) {
+
+    const room =
+        rooms[currentRoom];
+
+    const teammates = enemies.filter((candidate) =>
+
+        candidate !== enemy
+    );
+
+
+    // ============================================================
+    // IDENTIFICAR ATAQUES IMPORTANTES
+    // ============================================================
+
+    function isAttacking(candidate) {
+
+        if (
+            candidate.type === "stretcherBearer"
+        ) {
+
+            return [
+
+                "windup",
+
+                "charge"
+
+            ].includes(
+                candidate.stretcherState
+            );
+        }
+
+        if (
+            candidate.type === "securityGuard"
+        ) {
+
+            return [
+
+                "windup",
+
+                "bash"
+
+            ].includes(
+                candidate.guardState
+            );
+        }
+
+        if (
+            candidate.type === "aggressiveNurse"
+        ) {
+
+            return [
+
+                "windup",
+
+                "rush"
+
+            ].includes(
+                candidate.nurseState
+            );
+        }
+
+        return false;
+    }
+
+
+    // ============================================================
+    // COMPROBAR EL TURNO ACTUAL
+    // ============================================================
+
+    const pauseUntil =
+        room.junctionAttackPauseUntil || 0;
+
+    const nextAttacker =
+        room.junctionNextAttacker;
+
+    const nextAttackerAlive = enemies.some((candidate) =>
+
+        candidate.type === nextAttacker
+    );
+
+    const waitingForTurn =
+
+        teammates.length > 0 &&
+
+        nextAttackerAlive &&
+
+        enemy.type !== nextAttacker &&
+
+        performance.now() <
+            (room.junctionTurnExpiresAt || 0);
+
+
+    // Con tres enemigos hay más pausa.
+    // Con dos enemigos, el ritmo aumenta.
+
+    const pauseDuration =
+
+        teammates.length >= 2
+
+            ? 360
+
+            : 210;
+
+
+    // ============================================================
+    // CEDER EL TURNO AL SIGUIENTE ENEMIGO
+    // ============================================================
+
+    function finishTurn() {
+
+        const order = [
+
+            "stretcherBearer",
+
+            "securityGuard",
+
+            "aggressiveNurse"
+        ];
+
+        const currentIndex =
+            order.indexOf(enemy.type);
+
+        for (
+
+            let offset = 1;
+
+            offset <= order.length;
+
+            offset++
+
+        ) {
+
+            const candidateType =
+
+                order[
+
+                    (currentIndex + offset) %
+
+                    order.length
+                ];
+
+            if (
+
+                enemies.some((candidate) =>
+
+                    candidate.type === candidateType
+                )
+
+            ) {
+
+                room.junctionNextAttacker =
+                    candidateType;
+
+                break;
+            }
+        }
+
+        room.junctionAttackPauseUntil = Math.max(
+
+            room.junctionAttackPauseUntil || 0,
+
+            performance.now() + pauseDuration
+        );
+
+        room.junctionTurnExpiresAt =
+
+            performance.now() +
+
+            pauseDuration +
+
+            1800;
+    }
+
+
+    // ============================================================
+    // ESTADO ACTUAL DE LA COORDINACIÓN
+    // ============================================================
+
+    return {
+
+        teammatesAlive:
+            teammates.length,
+
+        attacking:
+            isAttacking(enemy),
+
+        teammateAttacking:
+            teammates.some(isAttacking),
+
+        blocked:
+
+            teammates.length > 0 &&
+
+            (
+
+                teammates.some(isAttacking) ||
+
+                performance.now() < pauseUntil ||
+
+                waitingForTurn
+            ),
+
+        pauseDuration,
+
+        finishTurn
+    };
+}
 function updateInpatientJunctionStretcher(enemy, deltaTime) {
 
-    // ============================================================
-    // LOCALIZAR AL CELADOR
-    // ============================================================
+    const combat =
+        getInpatientJunctionCombatState(enemy);
 
-    const guard = enemies.find((candidate) =>
-
-        candidate.type === "securityGuard" &&
-
-        candidate.inpatientJunctionGuard
-    );
+    const wasAttacking =
+        combat.attacking;
 
 
     // ============================================================
-    // LOCALIZAR A LA ENFERMERA
+    // ADAPTAR EL RITMO SEGÚN LOS ENEMIGOS RESTANTES
     // ============================================================
 
-    const escort = enemies.find((candidate) =>
+    enemy.repositionDuration =
 
-        candidate.type === "aggressiveNurse" &&
+        combat.teammatesAlive >= 2
 
-        candidate.inpatientJunctionEscort
-    );
+            ? 42
+
+            : combat.teammatesAlive === 1
+
+                ? 34
+
+                : 27;
+
+    enemy.recoverDuration =
+
+        combat.teammatesAlive >= 2
+
+            ? 40
+
+            : combat.teammatesAlive === 1
+
+                ? 32
+
+                : 23;
+
+    enemy.windupDuration =
+
+        combat.teammatesAlive >= 2
+
+            ? 22
+
+            : combat.teammatesAlive === 1
+
+                ? 19
+
+                : 17;
 
 
     // ============================================================
-    // COORDINACIÓN MIENTRAS EL CAMILLERO SE REPOSICIONA
+    // ESPERAR SI OTRO ENEMIGO ESTÁ ACTUANDO
     // ============================================================
 
     if (
 
-        guard &&
+        combat.blocked &&
 
         enemy.stretcherState === "reposition"
 
     ) {
 
-        const playerX =
-            player.x + player.width / 2;
+        enemy.stateTimer = Math.max(
 
-        const playerY =
-            player.y + player.height / 2;
+            enemy.stateTimer,
 
-        const enemyX =
-            enemy.x + enemy.width / 2;
+            combat.teammatesAlive >= 2
 
-        const enemyY =
-            enemy.y + enemy.height / 2;
+                ? 13
 
-        const directionX =
-            playerX - enemyX;
-
-        const directionY =
-            playerY - enemyY;
-
-        const distance =
-
-            Math.hypot(
-
-                directionX,
-
-                directionY
-
-            ) || 1;
-
-        const guardX =
-
-            guard.x +
-
-            guard.width / 2 -
-
-            playerX;
-
-        const guardY =
-
-            guard.y +
-
-            guard.height / 2 -
-
-            playerY;
-
-        const guardSide =
-
-            guardX *
-
-            (
-                -directionY / distance
-            )
-
-            +
-
-            guardY *
-
-            (
-                directionX / distance
-            );
-
-
-        // El camillero busca un ángulo distinto al del celador.
-        if (
-            Math.abs(guardSide) > 18
-        ) {
-
-            enemy.orbitDirection =
-
-                guardSide > 0
-
-                    ? -1
-
-                    : 1;
-        }
-
-
-        // Evita iniciar su carga exactamente durante el empuje.
-        if (
-
-            [
-                "windup",
-                "bash"
-
-            ].includes(
-                guard.guardState
-            )
-
-        ) {
-
-            enemy.stateTimer = Math.max(
-
-                enemy.stateTimer,
-
-                11
-            );
-
-        } else if (
-
-            guard.guardState === "exposed"
-
-        ) {
-
-            enemy.stateTimer = Math.min(
-
-                enemy.stateTimer,
-
-                13
-            );
-        }
-
-
-        // Aprovecha cuando la enfermera obliga a cambiar de posición.
-        if (
-
-            escort &&
-
-            escort.nurseState === "rush" &&
-
-            guard.guardState !== "windup" &&
-
-            guard.guardState !== "bash"
-
-        ) {
-
-            enemy.stateTimer = Math.min(
-
-                enemy.stateTimer,
-
-                14
-            );
-        }
+                : 8
+        );
     }
 
 
-    // Mantiene todas las mecánicas originales del camillero.
+    // Mantener el comportamiento original del camillero.
     updateStretcherBearer(
 
         enemy,
 
         deltaTime
     );
+
+    const currentCombat =
+        getInpatientJunctionCombatState(enemy);
+
+
+    // ============================================================
+    // EVITAR QUE SE SUPERPONGA CON OTRO ATAQUE
+    // ============================================================
+
+    if (
+
+        !wasAttacking &&
+
+        combat.blocked &&
+
+        currentCombat.attacking
+
+    ) {
+
+        enemy.stretcherState =
+            "reposition";
+
+        enemy.stateTimer =
+
+            combat.teammatesAlive >= 2
+
+                ? 16
+
+                : 10;
+
+        return;
+    }
+
+
+    // ============================================================
+    // CEDER EL TURNO
+    // ============================================================
+
+    if (
+
+        wasAttacking &&
+
+        !currentCombat.attacking &&
+
+        currentCombat.teammatesAlive > 0
+
+    ) {
+
+        currentCombat.finishTurn();
+    }
 }
 function updateInpatientJunctionGuard(enemy, deltaTime) {
+
+    const combat =
+        getInpatientJunctionCombatState(enemy);
+
+    const wasAttacking =
+        combat.attacking;
+
+    const previousState =
+        enemy.guardState;
+
 
     // ============================================================
     // LOCALIZAR AL CAMILLERO
@@ -5319,7 +5518,7 @@ function updateInpatientJunctionGuard(enemy, deltaTime) {
 
 
     // ============================================================
-    // INTERCEPTAR LA POSIBLE RUTA DE ESCAPE
+    // ACOMPAÑAR LA EMBESTIDA SIN BLOQUEAR TODAS LAS SALIDAS
     // ============================================================
 
     if (
@@ -5329,7 +5528,9 @@ function updateInpatientJunctionGuard(enemy, deltaTime) {
         enemy.guardState === "hold" &&
 
         [
+
             "windup",
+
             "charge"
 
         ].includes(
@@ -5339,31 +5540,17 @@ function updateInpatientJunctionGuard(enemy, deltaTime) {
     ) {
 
         const playerX =
-
-            player.x +
-
-            player.width / 2;
+            player.x + player.width / 2;
 
         const playerY =
-
-            player.y +
-
-            player.height / 2;
+            player.y + player.height / 2;
 
         const guardX =
-
-            enemy.x +
-
-            enemy.width / 2;
+            enemy.x + enemy.width / 2;
 
         const guardY =
+            enemy.y + enemy.height / 2;
 
-            enemy.y +
-
-            enemy.height / 2;
-
-
-        // Dirección de la embestida del camillero.
         const laneX =
 
             stretcher.chargeTargetX -
@@ -5390,58 +5577,11 @@ function updateInpatientJunctionGuard(enemy, deltaTime) {
 
             ) || 1;
 
-
-        // Dirección perpendicular: por donde suele esquivar el jugador.
         const perpendicularX =
-
-            -laneY /
-
-            laneDistance;
+            -laneY / laneDistance;
 
         const perpendicularY =
-
-            laneX /
-
-            laneDistance;
-
-        const inputX =
-
-            Number(Boolean(keys.d)) -
-
-            Number(Boolean(keys.a));
-
-        const inputY =
-
-            Number(Boolean(keys.s)) -
-
-            Number(Boolean(keys.w));
-
-        const escapeProjection =
-
-            inputX *
-
-            perpendicularX
-
-            +
-
-            inputY *
-
-            perpendicularY;
-
-        if (
-
-            Math.abs(
-                escapeProjection
-            ) > 0.15
-
-        ) {
-
-            enemy.junctionFlankSide =
-
-                Math.sign(
-                    escapeProjection
-                );
-        }
+            laneX / laneDistance;
 
         const interceptX =
 
@@ -5451,7 +5591,7 @@ function updateInpatientJunctionGuard(enemy, deltaTime) {
 
             enemy.junctionFlankSide *
 
-            82;
+            138;
 
         const interceptY =
 
@@ -5461,19 +5601,13 @@ function updateInpatientJunctionGuard(enemy, deltaTime) {
 
             enemy.junctionFlankSide *
 
-            82;
+            138;
 
         const movementX =
-
-            interceptX -
-
-            guardX;
+            interceptX - guardX;
 
         const movementY =
-
-            interceptY -
-
-            guardY;
+            interceptY - guardY;
 
         const movementDistance =
 
@@ -5485,13 +5619,21 @@ function updateInpatientJunctionGuard(enemy, deltaTime) {
 
             ) || 1;
 
+        const supportSpeed =
+
+            combat.teammatesAlive >= 2
+
+                ? 0.28
+
+                : 0.42;
+
         enemy.x +=
 
             movementX /
 
             movementDistance *
 
-            0.72 *
+            supportSpeed *
 
             deltaTime;
 
@@ -5501,21 +5643,19 @@ function updateInpatientJunctionGuard(enemy, deltaTime) {
 
             movementDistance *
 
-            0.72 *
+            supportSpeed *
 
             deltaTime;
     }
 
 
     // ============================================================
-    // PRESIONAR CUANDO EL CAMILLERO TERMINA SU CARGA
+    // ESPERAR SI EL TURNO PERTENECE A OTRO ENEMIGO
     // ============================================================
 
     if (
 
-        stretcher &&
-
-        stretcher.stretcherState === "recover" &&
+        combat.blocked &&
 
         enemy.guardState === "hold"
 
@@ -5529,11 +5669,15 @@ function updateInpatientJunctionGuard(enemy, deltaTime) {
 
         ) {
 
-            enemy.guardTimer = Math.min(
+            enemy.guardTimer = Math.max(
 
                 enemy.guardTimer,
 
-                19
+                combat.teammatesAlive >= 2
+
+                    ? 12
+
+                    : 8
             );
 
         } else if (
@@ -5544,23 +5688,221 @@ function updateInpatientJunctionGuard(enemy, deltaTime) {
 
         ) {
 
-            enemy.stateTimer = Math.min(
+            enemy.stateTimer = Math.max(
 
                 enemy.stateTimer,
 
-                19
+                combat.teammatesAlive >= 2
+
+                    ? 12
+
+                    : 8
             );
         }
     }
 
 
-    // Mantiene el escudo y el comportamiento original del celador.
+    // Mantener el escudo y la lógica original del celador.
     updateSecurityGuard(
 
         enemy,
 
         deltaTime
     );
+
+    const currentCombat =
+        getInpatientJunctionCombatState(enemy);
+
+
+    // ============================================================
+    // EVITAR ATAQUES SIMULTÁNEOS
+    // ============================================================
+
+    if (
+
+        !wasAttacking &&
+
+        combat.blocked &&
+
+        currentCombat.attacking
+
+    ) {
+
+        enemy.guardState =
+
+            previousState === "hold"
+
+                ? "hold"
+
+                : previousState;
+
+        if (
+
+            Number.isFinite(
+                enemy.guardTimer
+            )
+
+        ) {
+
+            enemy.guardTimer =
+
+                combat.teammatesAlive >= 2
+
+                    ? 14
+
+                    : 9;
+
+        } else if (
+
+            Number.isFinite(
+                enemy.stateTimer
+            )
+
+        ) {
+
+            enemy.stateTimer =
+
+                combat.teammatesAlive >= 2
+
+                    ? 14
+
+                    : 9;
+        }
+
+        return;
+    }
+
+
+    // ============================================================
+    // CEDER EL TURNO
+    // ============================================================
+
+    if (
+
+        wasAttacking &&
+
+        !currentCombat.attacking &&
+
+        currentCombat.teammatesAlive > 0
+
+    ) {
+
+        enemy.junctionFlankSide *= -1;
+
+        currentCombat.finishTurn();
+    }
+}
+function updateInpatientJunctionEscort(enemy, deltaTime) {
+
+    const combat =
+        getInpatientJunctionCombatState(enemy);
+
+    const wasAttacking =
+        combat.attacking;
+
+    const previousState =
+        enemy.nurseState;
+
+
+    // ============================================================
+    // ESPERAR MIENTRAS OTRO ENEMIGO REALIZA SU ATAQUE
+    // ============================================================
+
+    if (
+
+        combat.blocked &&
+
+        [
+
+            "intercept",
+
+            "chase"
+
+        ].includes(
+            enemy.nurseState
+        ) &&
+
+        Number.isFinite(
+            enemy.nurseTimer
+        )
+
+    ) {
+
+        enemy.nurseTimer = Math.max(
+
+            enemy.nurseTimer,
+
+            combat.teammatesAlive >= 2
+
+                ? 15
+
+                : 9
+        );
+    }
+
+
+    // Mantener el comportamiento original de la enfermera.
+    updateSecurityEscortNurse(
+
+        enemy,
+
+        deltaTime
+    );
+
+    const currentCombat =
+        getInpatientJunctionCombatState(enemy);
+
+
+    // ============================================================
+    // EVITAR QUE INICIE SU ATAQUE FUERA DE TURNO
+    // ============================================================
+
+    if (
+
+        !wasAttacking &&
+
+        combat.blocked &&
+
+        currentCombat.attacking
+
+    ) {
+
+        enemy.nurseState =
+
+            previousState === "chase"
+
+                ? "chase"
+
+                : "intercept";
+
+        enemy.nurseTimer =
+
+            combat.teammatesAlive >= 2
+
+                ? 17
+
+                : 11;
+
+        return;
+    }
+
+
+    // ============================================================
+    // CEDER EL TURNO
+    // ============================================================
+
+    if (
+
+        wasAttacking &&
+
+        !currentCombat.attacking &&
+
+        currentCombat.teammatesAlive > 0
+
+    ) {
+
+        currentCombat.finishTurn();
+    }
 }
 function getEnemyUpdateHandler(enemy) {
 
@@ -5661,6 +6003,15 @@ function getEnemyUpdateHandler(enemy) {
         enemy.type === "aggressiveNurse"
 
     ) {
+
+        if (
+
+            enemy.inpatientJunctionEscort
+
+        ) {
+
+            return updateInpatientJunctionEscort;
+        }
 
         if (
 
