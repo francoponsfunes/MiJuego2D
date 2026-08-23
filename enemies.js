@@ -29,7 +29,7 @@ const enemies = [];
 
 // Creación y configuración de enemigos.
 function createEnemy(config) {
-    return {
+    const enemy = {
         width: 40,
         height: 40,
         touchingPlayer: false,
@@ -38,6 +38,15 @@ function createEnemy(config) {
         knockbackY: 0,
         ...config
     };
+
+    if (
+        enemy.type === "stretcherBearer" &&
+        Number.isFinite(enemy.chargeSpeed)
+    ) {
+        enemy.chargeSpeed *= 0.93;
+    }
+
+    return enemy;
 }
 
 function spawnEnemyGroup(amount, configFactory) {
@@ -5942,7 +5951,6 @@ function updateEnemyKnockbackAndBounds(enemy, deltaTime) {
         }
     }
 }
-
 function updateEnemies(deltaTime) {
     enemies.forEach((enemy) => {
         if (typeof enemy.knockbackX !== "number") {
@@ -5951,6 +5959,29 @@ function updateEnemies(deltaTime) {
 
         if (typeof enemy.knockbackY !== "number") {
             enemy.knockbackY = 0;
+        }
+
+        if (enemy.type === "securityGuard") {
+            if (
+                enemy.guardState === "hold" &&
+                !enemy.shieldDurationAdjusted
+            ) {
+                if (Number.isFinite(enemy.guardTimer)) {
+                    enemy.guardTimer *= 0.85;
+                    enemy.shieldDurationAdjusted = true;
+
+                } else if (
+                    Number.isFinite(enemy.stateTimer)
+                ) {
+                    enemy.stateTimer *= 0.85;
+                    enemy.shieldDurationAdjusted = true;
+                }
+
+            } else if (
+                enemy.guardState !== "hold"
+            ) {
+                enemy.shieldDurationAdjusted = false;
+            }
         }
 
         const updateHandler =
@@ -5969,7 +6000,6 @@ function updateEnemies(deltaTime) {
         );
     });
 }
-
 // Generación de enemigos según la sala.
 function spawnSurgicalPreparationEnemies() {
     spawnEnemyGroup(
