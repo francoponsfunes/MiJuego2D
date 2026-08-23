@@ -2824,164 +2824,126 @@ function updateFallbackAnesthesiologist(enemy, deltaTime) {
 function createStretcherBearerConfig() {
     return {
         type: "stretcherBearer",
-
-        x:
-            canvas.width / 2 -
-            24,
-
+        x: canvas.width / 2 - 24,
         y: 105,
-
         width: 48,
         height: 52,
-
-        speed: 2.15,
-
+        speed: 2.4,
         health: 7,
         maxHealth: 7,
-
         color: "#d89962",
-
         knockbackResistance: 2.2,
-
         stretcherState: "reposition",
-
-        stateTimer: 38,
-
-        repositionDuration: 48,
-
-        windupDuration: 25,
-
-        recoverDuration: 34,
-
-        preferredDistance: 225,
-
+        stateTimer: 21,
+        repositionDuration: 27,
+        windupDuration: 17,
+        recoverDuration: 22,
+        preferredDistance: 190,
         orbitDirection: 1,
-
-        chargeSpeed: 7.4,
-
+        chargeSpeed: 8.55,
         chargeX: 0,
         chargeY: 0,
-
-        chargeTargetX:
-            player.x +
-            player.width / 2,
-
-        chargeTargetY:
-            player.y +
-            player.height / 2,
-
+        chargeTargetX: player.x + player.width / 2,
+        chargeTargetY: player.y + player.height / 2,
         chargeHit: false,
-
         chargesCompleted: 0
     };
 }
-
 function spawnTransferIntroductionEnemies() {
-    enemies.push(
-        createEnemy(
-            createStretcherBearerConfig()
-        )
-    );
+    enemies.push(createEnemy(createStretcherBearerConfig()));
 
-    const leper =
-        createLeperConfig(0);
+    const leper = createLeperConfig(0);
 
-    leper.x =
-        canvas.width - 155;
-
+    leper.x = canvas.width - 155;
     leper.y = 180;
-
     leper.flankSide = -1;
+    leper.leperTimer = 32;
+    leper.transferHunter = true;
+    leper.transferRushSpeed = 3.65;
+    leper.transferTargetX = player.x + player.width / 2;
+    leper.transferTargetY = player.y + player.height / 2;
 
-    leper.leperTimer = 95;
-
-    enemies.push(
-        createEnemy(leper)
-    );
+    enemies.push(createEnemy(leper));
 }
-
 function updateStretcherBearer(enemy, deltaTime) {
-    const enemyX =
-        enemy.x +
-        enemy.width / 2;
+    const enemyX = enemy.x + enemy.width / 2;
+    const enemyY = enemy.y + enemy.height / 2;
+    const playerX = player.x + player.width / 2;
+    const playerY = player.y + player.height / 2;
+    const distanceX = playerX - enemyX;
+    const distanceY = playerY - enemyY;
+    const distance = Math.hypot(distanceX, distanceY) || 1;
+    const directionX = distanceX / distance;
+    const directionY = distanceY / distance;
 
-    const enemyY =
-        enemy.y +
-        enemy.height / 2;
-
-    const playerX =
-        player.x +
-        player.width / 2;
-
-    const playerY =
-        player.y +
-        player.height / 2;
-
-    const distanceX =
-        playerX - enemyX;
-
-    const distanceY =
-        playerY - enemyY;
-
-    const distance =
-        Math.hypot(
-            distanceX,
-            distanceY
-        ) || 1;
-
-    const directionX =
-        distanceX / distance;
-
-    const directionY =
-        distanceY / distance;
-
-    // ========================================================================
-    // REPOSICIONAMIENTO.
-    // ========================================================================
+    const escort = enemies.find((candidate) =>
+        candidate.type === "leper" && candidate.transferHunter
+    );
 
     if (enemy.stretcherState === "reposition") {
         enemy.stateTimer -= deltaTime;
 
+        if (escort) {
+            const escortX =
+                escort.x + escort.width / 2 - playerX;
+
+            const escortY =
+                escort.y + escort.height / 2 - playerY;
+
+            const escortSide =
+                escortX * -directionY +
+                escortY * directionX;
+
+            if (Math.abs(escortSide) > 22) {
+                enemy.orbitDirection =
+                    escortSide > 0 ? -1 : 1;
+            }
+
+            if (
+                ["windup", "rush"].includes(
+                    escort.leperState
+                )
+            ) {
+                enemy.stateTimer = Math.min(
+                    enemy.stateTimer,
+                    10
+                );
+            }
+        }
+
+        if (distance < 130) {
+            enemy.stateTimer = Math.min(
+                enemy.stateTimer,
+                9
+            );
+        }
+
         const orbitX =
-            -directionY *
-            enemy.orbitDirection;
+            -directionY * enemy.orbitDirection;
 
         const orbitY =
-            directionX *
-            enemy.orbitDirection;
+            directionX * enemy.orbitDirection;
 
         const distanceCorrection = Math.max(
             -1,
-
             Math.min(
                 1,
-
-                (
-                    distance -
+                (distance - enemy.preferredDistance) /
                     enemy.preferredDistance
-                ) /
-                enemy.preferredDistance
             )
         );
 
         let movementX =
-            orbitX * 0.72 +
-            directionX *
-            distanceCorrection *
-            1.4;
+            orbitX * 0.58 +
+            directionX * distanceCorrection * 1.65;
 
         let movementY =
-            orbitY * 0.72 +
-            directionY *
-            distanceCorrection *
-            1.4;
+            orbitY * 0.58 +
+            directionY * distanceCorrection * 1.65;
 
-        if (distance > 335) {
-            movementX +=
-                directionX * 0.9;
-
-            movementY +=
-                directionY * 0.9;
+        if (distance > 270) {
+            movementX += directionX * 1.15;
+            movementY += directionY * 1.15;
         }
 
         const movementDistance =
@@ -3004,38 +2966,24 @@ function updateStretcherBearer(enemy, deltaTime) {
 
         if (
             enemy.stateTimer <= 0 &&
-            distance > 75 &&
-            distance < 470
+            distance > 55 &&
+            distance < 520
         ) {
-            enemy.stretcherState =
-                "windup";
+            enemy.stretcherState = "windup";
+            enemy.stateTimer = enemy.windupDuration;
+            enemy.chargeHit = false;
+            enemy.chargeTargetX = playerX;
+            enemy.chargeTargetY = playerY;
 
-            enemy.stateTimer =
-                enemy.windupDuration;
-
-            enemy.chargeHit =
-                false;
-
-            enemy.chargeTargetX =
-                playerX;
-
-            enemy.chargeTargetY =
-                playerY;
-        } else if (
-            enemy.stateTimer <= 0
-        ) {
-            enemy.stateTimer = 15;
+        } else if (enemy.stateTimer <= 0) {
+            enemy.stateTimer = 8;
         }
 
         return;
     }
 
-    // ========================================================================
-    // PREPARACIÓN DE LA CARGA.
-    // ========================================================================
-
     if (enemy.stretcherState === "windup") {
-        if (enemy.stateTimer > 8) {
+        if (enemy.stateTimer > 4) {
             const inputX =
                 Number(Boolean(keys.d)) -
                 Number(Boolean(keys.a));
@@ -3051,41 +2999,74 @@ function updateStretcherBearer(enemy, deltaTime) {
                 ) || 1;
 
             const travelFrames =
-                distance /
-                enemy.chargeSpeed;
+                distance / enemy.chargeSpeed;
 
             const predictionDistance = Math.min(
-                105,
-
-                travelFrames *
-                player.speed *
-                PLAYER_SPEED_MULTIPLIER *
-                0.82
+                138,
+                (
+                    travelFrames +
+                    Math.min(enemy.stateTimer, 7)
+                ) *
+                    player.speed *
+                    PLAYER_SPEED_MULTIPLIER *
+                    1.02
             );
+
+            let escapePressureX = 0;
+            let escapePressureY = 0;
+
+            if (
+                escort &&
+                (inputX !== 0 || inputY !== 0)
+            ) {
+                const escapeX =
+                    playerX -
+                    escort.x -
+                    escort.width / 2;
+
+                const escapeY =
+                    playerY -
+                    escort.y -
+                    escort.height / 2;
+
+                const escapeDistance =
+                    Math.hypot(
+                        escapeX,
+                        escapeY
+                    ) || 1;
+
+                escapePressureX =
+                    escapeX /
+                    escapeDistance *
+                    20;
+
+                escapePressureY =
+                    escapeY /
+                    escapeDistance *
+                    20;
+            }
 
             enemy.chargeTargetX = Math.max(
                 42,
-
                 Math.min(
                     canvas.width - 42,
-
                     playerX +
-                    inputX /
-                    inputDistance *
-                    predictionDistance
+                        inputX /
+                        inputDistance *
+                        predictionDistance +
+                        escapePressureX
                 )
             );
 
             enemy.chargeTargetY = Math.max(
                 42,
-
                 Math.min(
                     canvas.height - 42,
-
                     playerY +
-                    inputY /
-                    inputDistance *
-                    predictionDistance
+                        inputY /
+                        inputDistance *
+                        predictionDistance +
+                        escapePressureY
                 )
             );
         }
@@ -3094,12 +3075,10 @@ function updateStretcherBearer(enemy, deltaTime) {
 
         if (enemy.stateTimer <= 0) {
             const attackX =
-                enemy.chargeTargetX -
-                enemyX;
+                enemy.chargeTargetX - enemyX;
 
             const attackY =
-                enemy.chargeTargetY -
-                enemyY;
+                enemy.chargeTargetY - enemyY;
 
             const attackDistance =
                 Math.hypot(
@@ -3108,35 +3087,26 @@ function updateStretcherBearer(enemy, deltaTime) {
                 ) || 1;
 
             enemy.chargeX =
-                attackX /
-                attackDistance;
+                attackX / attackDistance;
 
             enemy.chargeY =
-                attackY /
-                attackDistance;
+                attackY / attackDistance;
 
-            enemy.stretcherState =
-                "charge";
+            enemy.stretcherState = "charge";
 
             enemy.stateTimer = Math.max(
-                24,
-
+                20,
                 Math.min(
-                    82,
-
+                    72,
                     attackDistance /
-                    enemy.chargeSpeed +
-                    15
+                        enemy.chargeSpeed +
+                        11
                 )
             );
         }
 
         return;
     }
-
-    // ========================================================================
-    // CARGA.
-    // ========================================================================
 
     if (enemy.stretcherState === "charge") {
         enemy.stateTimer -= deltaTime;
@@ -3152,17 +3122,11 @@ function updateStretcherBearer(enemy, deltaTime) {
             deltaTime;
 
         if (
-            areEntitiesColliding(
-                player,
-                enemy
-            ) &&
+            areEntitiesColliding(player, enemy) &&
             !enemy.chargeHit
         ) {
-            enemy.chargeHit =
-                true;
-
-            enemy.touchingPlayer =
-                true;
+            enemy.chargeHit = true;
+            enemy.touchingPlayer = true;
 
             damagePlayerFromEntity(
                 1,
@@ -3170,12 +3134,8 @@ function updateStretcherBearer(enemy, deltaTime) {
                 11
             );
 
-            enemy.stretcherState =
-                "recover";
-
-            enemy.stateTimer =
-                enemy.recoverDuration;
-
+            enemy.stretcherState = "recover";
+            enemy.stateTimer = enemy.recoverDuration;
             enemy.chargesCompleted++;
 
             return;
@@ -3183,12 +3143,9 @@ function updateStretcherBearer(enemy, deltaTime) {
 
         const hitWall =
             enemy.x <= 20 ||
-
             enemy.y <= 20 ||
-
             enemy.x + enemy.width >=
                 canvas.width - 20 ||
-
             enemy.y + enemy.height >=
                 canvas.height - 20;
 
@@ -3196,52 +3153,353 @@ function updateStretcherBearer(enemy, deltaTime) {
             enemy.stateTimer <= 0 ||
             hitWall
         ) {
-            enemy.stretcherState =
-                "recover";
-
-            enemy.stateTimer =
-                enemy.recoverDuration;
-
+            enemy.stretcherState = "recover";
+            enemy.stateTimer = enemy.recoverDuration;
             enemy.chargesCompleted++;
         }
 
         return;
     }
 
-    // ========================================================================
-    // RECUPERACIÓN.
-    // ========================================================================
-
     if (enemy.stretcherState === "recover") {
         enemy.stateTimer -= deltaTime;
 
         enemy.x -=
             directionX *
-            0.55 *
+            0.32 *
             deltaTime;
 
         enemy.y -=
             directionY *
-            0.55 *
+            0.32 *
             deltaTime;
 
         if (enemy.stateTimer <= 0) {
-            enemy.stretcherState =
-                "reposition";
+            enemy.stretcherState = "reposition";
 
             enemy.stateTimer =
                 enemy.repositionDuration +
-                Math.random() * 16;
+                Math.random() * 10;
 
             enemy.orbitDirection *= -1;
-
             enemy.chargeHit = false;
+        }
+    }
+}
+function updateTransferHunterLeper(enemy, deltaTime) {
+    const enemyX =
+        enemy.x + enemy.width / 2;
+
+    const enemyY =
+        enemy.y + enemy.height / 2;
+
+    const playerX =
+        player.x + player.width / 2;
+
+    const playerY =
+        player.y + player.height / 2;
+
+    const distanceX =
+        playerX - enemyX;
+
+    const distanceY =
+        playerY - enemyY;
+
+    const distance =
+        Math.hypot(
+            distanceX,
+            distanceY
+        ) || 1;
+
+    const directionX =
+        distanceX / distance;
+
+    const directionY =
+        distanceY / distance;
+
+    const inputX =
+        Number(Boolean(keys.d)) -
+        Number(Boolean(keys.a));
+
+    const inputY =
+        Number(Boolean(keys.s)) -
+        Number(Boolean(keys.w));
+
+    const inputDistance =
+        Math.hypot(
+            inputX,
+            inputY
+        ) || 1;
+
+    const stretcher = enemies.find((candidate) =>
+        candidate.type === "stretcherBearer"
+    );
+
+    const stretcherAttacking = Boolean(
+        stretcher &&
+        ["windup", "charge"].includes(
+            stretcher.stretcherState
+        )
+    );
+
+    if (enemy.leperState === "chase") {
+        enemy.leperTimer -= deltaTime;
+
+        let flankX =
+            -directionY * enemy.flankSide;
+
+        let flankY =
+            directionX * enemy.flankSide;
+
+        if (stretcherAttacking) {
+            const laneX =
+                stretcher.chargeTargetX -
+                stretcher.x -
+                stretcher.width / 2;
+
+            const laneY =
+                stretcher.chargeTargetY -
+                stretcher.y -
+                stretcher.height / 2;
+
+            const laneDistance =
+                Math.hypot(
+                    laneX,
+                    laneY
+                ) || 1;
+
+            const perpendicularX =
+                -laneY / laneDistance;
+
+            const perpendicularY =
+                laneX / laneDistance;
+
+            const escapeProjection =
+                inputX * perpendicularX +
+                inputY * perpendicularY;
+
+            enemy.flankSide =
+                Math.abs(escapeProjection) > 0.1
+                    ? Math.sign(escapeProjection)
+                    : enemy.flankSide;
+
+            flankX =
+                perpendicularX *
+                enemy.flankSide;
+
+            flankY =
+                perpendicularY *
+                enemy.flankSide;
+
+            enemy.leperTimer = Math.min(
+                enemy.leperTimer,
+                15
+            );
+        }
+
+        const interceptDistance =
+            stretcherAttacking ? 84 : 56;
+
+        const targetX = Math.max(
+            35,
+            Math.min(
+                canvas.width - 35,
+                playerX +
+                    flankX *
+                    interceptDistance +
+                    inputX /
+                    inputDistance *
+                    42
+            )
+        );
+
+        const targetY = Math.max(
+            35,
+            Math.min(
+                canvas.height - 35,
+                playerY +
+                    flankY *
+                    interceptDistance +
+                    inputY /
+                    inputDistance *
+                    42
+            )
+        );
+
+        const moveX =
+            targetX - enemyX;
+
+        const moveY =
+            targetY - enemyY;
+
+        const moveDistance =
+            Math.hypot(
+                moveX,
+                moveY
+            ) || 1;
+
+        const movementSpeed =
+            enemy.speed *
+            (
+                stretcherAttacking
+                    ? 1.36
+                    : 1.16
+            );
+
+        enemy.x +=
+            moveX /
+            moveDistance *
+            movementSpeed *
+            deltaTime;
+
+        enemy.y +=
+            moveY /
+            moveDistance *
+            movementSpeed *
+            deltaTime;
+
+        if (
+            enemy.leperTimer <= 0 &&
+            distance > 52 &&
+            distance < 390
+        ) {
+            enemy.leperState = "windup";
+
+            enemy.leperTimer =
+                stretcherAttacking ? 11 : 14;
+
+            enemy.transferTargetX = targetX;
+            enemy.transferTargetY = targetY;
+
+        } else if (enemy.leperTimer <= 0) {
+            enemy.leperTimer = 12;
+        }
+
+        return;
+    }
+
+    if (enemy.leperState === "windup") {
+        if (enemy.leperTimer > 4) {
+            const anticipation =
+                stretcherAttacking ? 82 : 58;
+
+            enemy.transferTargetX = Math.max(
+                35,
+                Math.min(
+                    canvas.width - 35,
+                    playerX +
+                        inputX /
+                        inputDistance *
+                        anticipation
+                )
+            );
+
+            enemy.transferTargetY = Math.max(
+                35,
+                Math.min(
+                    canvas.height - 35,
+                    playerY +
+                        inputY /
+                        inputDistance *
+                        anticipation
+                )
+            );
+        }
+
+        enemy.leperTimer -= deltaTime;
+
+        enemy.x +=
+            directionX *
+            enemy.speed *
+            0.32 *
+            deltaTime;
+
+        enemy.y +=
+            directionY *
+            enemy.speed *
+            0.32 *
+            deltaTime;
+
+        if (enemy.leperTimer <= 0) {
+            const rushX =
+                enemy.transferTargetX - enemyX;
+
+            const rushY =
+                enemy.transferTargetY - enemyY;
+
+            const rushDistance =
+                Math.hypot(
+                    rushX,
+                    rushY
+                ) || 1;
+
+            enemy.rushX =
+                rushX / rushDistance;
+
+            enemy.rushY =
+                rushY / rushDistance;
+
+            enemy.leperState = "rush";
+
+            enemy.leperTimer = Math.max(
+                20,
+                Math.min(
+                    46,
+                    rushDistance /
+                        enemy.transferRushSpeed +
+                        8
+                )
+            );
+        }
+
+        return;
+    }
+
+    if (enemy.leperState === "rush") {
+        enemy.leperTimer -= deltaTime;
+
+        enemy.x +=
+            enemy.rushX *
+            enemy.transferRushSpeed *
+            deltaTime;
+
+        enemy.y +=
+            enemy.rushY *
+            enemy.transferRushSpeed *
+            deltaTime;
+
+        const hitWall =
+            enemy.x <= 20 ||
+            enemy.y <= 20 ||
+            enemy.x + enemy.width >=
+                canvas.width - 20 ||
+            enemy.y + enemy.height >=
+                canvas.height - 20;
+
+        if (
+            enemy.leperTimer <= 0 ||
+            hitWall
+        ) {
+            enemy.leperState = "chase";
+
+            enemy.leperTimer = stretcher
+                ? 29 + Math.random() * 14
+                : 24;
+
+            enemy.flankSide *= -1;
         }
     }
 }
 function getEnemyUpdateHandler(enemy) {
     if (enemy.type === "stretcherBearer") {
         return updateStretcherBearer;
+    }
+
+    if (
+        enemy.type === "leper" &&
+        enemy.transferHunter
+    ) {
+        return updateTransferHunterLeper;
     }
 
     if (enemy.type === "anesthesiologist") {
@@ -3270,10 +3528,7 @@ function getEnemyUpdateHandler(enemy) {
             : updateSurgeon;
     }
 
-    return (
-        ENEMY_UPDATE_HANDLERS[enemy.type] ||
-        null
-    );
+    return ENEMY_UPDATE_HANDLERS[enemy.type] || null;
 }
 function updateEnemyKnockbackAndBounds(enemy, deltaTime) {
     enemy.x += enemy.knockbackX * deltaTime;
