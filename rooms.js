@@ -35,6 +35,10 @@ const ROOM_DIRECTIONS = [
     "right"
 ];
 
+// ============================================================================
+// NIVEL 1.
+// ============================================================================
+
 const ROOM_DEFINITIONS = [
     {
         id: 1,
@@ -160,6 +164,11 @@ const ROOM_DEFINITIONS = [
         startsCleared: true
     }
 ];
+
+// ============================================================================
+// NIVEL 2.
+// ============================================================================
+
 const LEVEL_2_ROOM_DEFINITIONS = [
     {
         id: 11,
@@ -345,6 +354,10 @@ const LEVEL_ROOM_DEFINITIONS = {
     2: LEVEL_2_ROOM_DEFINITIONS
 };
 
+// ============================================================================
+// CREACIÓN DE SALAS.
+// ============================================================================
+
 function createRoomDefinition(config) {
     const room = {
         up: null,
@@ -355,18 +368,13 @@ function createRoomDefinition(config) {
         ...config
     };
 
-    room.cleared =
-        room.startsCleared;
+    room.cleared = room.startsCleared;
 
     room.visited =
-        room.id ===
-        levelConfigs[currentLevel].startRoom;
+        room.id === levelConfigs[currentLevel].startRoom;
 
-    if (
-        room.type === "pharmacy"
-    ) {
-        room.rewardCollected =
-            false;
+    if (room.type === "pharmacy") {
+        room.rewardCollected = false;
     }
 
     return room;
@@ -390,10 +398,12 @@ function createRoomsForLevel(level) {
 
 let rooms = createRoomsForLevel(currentLevel);
 
+// ============================================================================
+// CONSULTAS DE NIVEL Y SALAS.
+// ============================================================================
+
 function getCurrentLevelConfig() {
-    return levelConfigs[
-        currentLevel
-    ];
+    return levelConfigs[currentLevel];
 }
 
 function levelHasPharmacy() {
@@ -406,32 +416,23 @@ function levelHasPharmacy() {
     );
 }
 
-function getRoomType(
-    roomId = currentRoom
-) {
+function getRoomType(roomId = currentRoom) {
     return rooms[roomId]
         ? rooms[roomId].type
         : null;
 }
 
 function isCurrentRoomType(type) {
-    return (
-        getRoomType() === type
-    );
+    return getRoomType() === type;
 }
 
 function getBossRoomId() {
-    return (
-        getCurrentLevelConfig()
-            .bossRoom
-    );
+    return getCurrentLevelConfig().bossRoom;
 }
 
 function isBossDefeated() {
     const bossRoom =
-        rooms[
-            getBossRoomId()
-        ];
+        rooms[getBossRoomId()];
 
     return Boolean(
         bossRoom &&
@@ -492,72 +493,85 @@ function canEnterRoom(fromRoomId, targetRoomId) {
 
     return true;
 }
+
+// ============================================================================
+// PUERTAS.
+// ============================================================================
+
+const doors = {
+    top: false,
+    bottom: false,
+    left: false,
+    right: false
+};
+
 const doorDirections = {
     top: "up",
     bottom: "down",
     left: "left",
     right: "right"
 };
+
+function canUseDoor(direction) {
+    const room =
+        rooms[currentRoom];
+
+    if (
+        !room ||
+        !room.cleared ||
+        room[direction] === null
+    ) {
+        return false;
+    }
+
+    return canEnterRoom(
+        currentRoom,
+        room[direction]
+    );
+}
+
 function updateDoors() {
-    Object.entries(
-        doorDirections
-    ).forEach(([
-        visual,
-        direction
-    ]) => {
-        doors[visual] =
-            canUseDoor(
-                direction
-            );
-    });
+    Object.entries(doorDirections).forEach(
+        ([visual, direction]) => {
+            doors[visual] =
+                canUseDoor(direction);
+        }
+    );
 
     if (
         isCurrentRoomType("boss") &&
         boss.active &&
         !boss.defeated
     ) {
-        Object.keys(
-            doors
-        ).forEach((direction) => {
-            doors[direction] =
-                false;
+        Object.keys(doors).forEach((direction) => {
+            doors[direction] = false;
         });
     }
 }
 
-function getDoorColor(
-    visualDirection
-) {
+function getDoorColor(visualDirection) {
     const room =
         rooms[currentRoom];
 
     const direction =
-        doorDirections[
-            visualDirection
-        ];
+        doorDirections[visualDirection];
 
     const targetRoomId =
         room[direction];
 
     if (
         targetRoomId === null ||
-        !isRoomEnabled(
-            targetRoomId
-        )
+        !isRoomEnabled(targetRoomId)
     ) {
         return "#111";
     }
 
-    if (
-        doors[visualDirection]
-    ) {
+    if (doors[visualDirection]) {
         return "#777";
     }
 
     const targetType =
-        getRoomType(
-            targetRoomId
-        );
+        getRoomType(targetRoomId);
 
     return (
         targetType === "boss" ||
@@ -568,16 +582,10 @@ function getDoorColor(
 }
 
 function drawRoomBorders() {
-    ctx.fillStyle =
-        "#111";
+    ctx.fillStyle = "#111";
 
     [
-        [
-            0,
-            0,
-            canvas.width,
-            20
-        ],
+        [0, 0, canvas.width, 20],
 
         [
             0,
@@ -586,12 +594,7 @@ function drawRoomBorders() {
             20
         ],
 
-        [
-            0,
-            0,
-            20,
-            canvas.height
-        ],
+        [0, 0, 20, canvas.height],
 
         [
             canvas.width - 20,
@@ -600,9 +603,7 @@ function drawRoomBorders() {
             canvas.height
         ]
     ].forEach((border) => {
-        ctx.fillRect(
-            ...border
-        );
+        ctx.fillRect(...border);
     });
 }
 
@@ -637,22 +638,19 @@ function drawRoomDoors() {
         ]
     };
 
-    Object.entries(
-        positions
-    ).forEach(([
-        direction,
-        position
-    ]) => {
-        ctx.fillStyle =
-            getDoorColor(
-                direction
-            );
+    Object.entries(positions).forEach(
+        ([direction, position]) => {
+            ctx.fillStyle =
+                getDoorColor(direction);
 
-        ctx.fillRect(
-            ...position
-        );
-    });
+            ctx.fillRect(...position);
+        }
+    );
 }
+
+// ============================================================================
+// ADVERTENCIAS DEL CRUCE CENTRAL.
+// ============================================================================
 
 function drawJunctionWarnings() {
     enemies.forEach((enemy) => {
@@ -664,47 +662,32 @@ function drawJunctionWarnings() {
         }
 
         const centerX =
-            enemy.x +
-            enemy.width / 2;
+            enemy.x + enemy.width / 2;
 
         const centerY =
-            enemy.y +
-            enemy.height / 2;
+            enemy.y + enemy.height / 2;
 
         const interceptor =
             enemy.flankSide === 1;
 
         const targetX =
-            Number.isFinite(
-                enemy.junctionTargetX
-            )
+            Number.isFinite(enemy.junctionTargetX)
                 ? enemy.junctionTargetX
-                : (
-                    player.x +
-                    player.width / 2
-                );
+                : player.x + player.width / 2;
 
         const targetY =
-            Number.isFinite(
-                enemy.junctionTargetY
-            )
+            Number.isFinite(enemy.junctionTargetY)
                 ? enemy.junctionTargetY
-                : (
-                    player.y +
-                    player.height / 2
-                );
+                : player.y + player.height / 2;
 
-        const timerRatio =
-            Math.max(
-                0,
-
-                Math.min(
-                    1,
-
-                    enemy.leperTimer /
-                        enemy.junctionInitialDelay
-                )
-            );
+        const timerRatio = Math.max(
+            0,
+            Math.min(
+                1,
+                enemy.leperTimer /
+                enemy.junctionInitialDelay
+            )
+        );
 
         const imminent =
             enemy.leperTimer <= 23;
@@ -719,19 +702,16 @@ function drawJunctionWarnings() {
             Math.PI * 2
         );
 
-        ctx.strokeStyle =
-            imminent
-                ? interceptor
-                    ? "rgba(255, 100, 100, 0.98)"
-                    : "rgba(255, 255, 255, 0.95)"
-                : interceptor
-                    ? "rgba(255, 115, 85, 0.78)"
-                    : "rgba(255, 190, 80, 0.78)";
+        ctx.strokeStyle = imminent
+            ? interceptor
+                ? "rgba(255, 100, 100, 0.98)"
+                : "rgba(255, 255, 255, 0.95)"
+            : interceptor
+                ? "rgba(255, 115, 85, 0.78)"
+                : "rgba(255, 190, 80, 0.78)";
 
         ctx.lineWidth =
-            imminent
-                ? 3
-                : 2;
+            imminent ? 3 : 2;
 
         ctx.stroke();
 
@@ -751,10 +731,9 @@ function drawJunctionWarnings() {
             targetY
         );
 
-        ctx.strokeStyle =
-            interceptor
-                ? "rgba(255, 105, 105, 0.75)"
-                : "rgba(255, 255, 255, 0.60)";
+        ctx.strokeStyle = interceptor
+            ? "rgba(255, 105, 105, 0.75)"
+            : "rgba(255, 255, 255, 0.60)";
 
         ctx.lineWidth = 2;
 
@@ -765,13 +744,8 @@ function drawJunctionWarnings() {
         ctx.arc(
             targetX,
             targetY,
-
-            interceptor
-                ? 12
-                : 9,
-
+            interceptor ? 12 : 9,
             0,
-
             Math.PI * 2
         );
 
@@ -779,20 +753,19 @@ function drawJunctionWarnings() {
     });
 }
 
-function drawAnesthesiaZone(
-    enemy
-) {
+// ============================================================================
+// ADVERTENCIAS DE ANESTESIA.
+// ============================================================================
+
+function drawAnesthesiaZone(enemy) {
     const active =
-        enemy.preparationState ===
-        "zoneActive";
+        enemy.preparationState === "zoneActive";
 
     const centerX =
-        enemy.x +
-        enemy.width / 2;
+        enemy.x + enemy.width / 2;
 
     const centerY =
-        enemy.y +
-        enemy.height / 2;
+        enemy.y + enemy.height / 2;
 
     ctx.beginPath();
 
@@ -806,10 +779,9 @@ function drawAnesthesiaZone(
         enemy.zoneY
     );
 
-    ctx.strokeStyle =
-        active
-            ? "rgba(125, 105, 255, 0.38)"
-            : "rgba(105, 195, 255, 0.62)";
+    ctx.strokeStyle = active
+        ? "rgba(125, 105, 255, 0.38)"
+        : "rgba(105, 195, 255, 0.62)";
 
     ctx.lineWidth = 2;
 
@@ -832,15 +804,12 @@ function drawAnesthesiaZone(
         ctx.fill();
     }
 
-    ctx.strokeStyle =
-        active
-            ? "rgba(185, 170, 255, 0.98)"
-            : "rgba(105, 205, 255, 0.92)";
+    ctx.strokeStyle = active
+        ? "rgba(185, 170, 255, 0.98)"
+        : "rgba(105, 205, 255, 0.92)";
 
     ctx.lineWidth =
-        active
-            ? 4
-            : 3;
+        active ? 4 : 3;
 
     ctx.stroke();
 
@@ -851,26 +820,19 @@ function drawAnesthesiaZone(
     const progress =
         1 -
         enemy.stateTimer /
-            enemy.zoneWindupDuration;
+        enemy.zoneWindupDuration;
 
     ctx.beginPath();
 
     ctx.arc(
         enemy.zoneX,
-
         enemy.zoneY,
-
         Math.max(
             8,
-
             enemy.zoneRadius *
-                (
-                    1 - progress
-                )
+            (1 - progress)
         ),
-
         0,
-
         Math.PI * 2
     );
 
@@ -882,16 +844,12 @@ function drawAnesthesiaZone(
     ctx.stroke();
 }
 
-function drawAnesthesiaDashWarning(
-    enemy
-) {
+function drawAnesthesiaDashWarning(enemy) {
     const centerX =
-        enemy.x +
-        enemy.width / 2;
+        enemy.x + enemy.width / 2;
 
     const centerY =
-        enemy.y +
-        enemy.height / 2;
+        enemy.y + enemy.height / 2;
 
     ctx.strokeStyle =
         "rgba(255, 125, 210, 0.95)";
@@ -934,9 +892,7 @@ function drawAnesthesiaDashWarning(
 
 function drawAnesthesiaWarnings() {
     enemies.forEach((enemy) => {
-        if (
-            !enemy.preparationAnesthesiologist
-        ) {
+        if (!enemy.preparationAnesthesiologist) {
             return;
         }
 
@@ -944,20 +900,20 @@ function drawAnesthesiaWarnings() {
             enemy.preparationState === "zoneWindup" ||
             enemy.preparationState === "zoneActive"
         ) {
-            drawAnesthesiaZone(
-                enemy
-            );
+            drawAnesthesiaZone(enemy);
         }
 
         if (
             enemy.preparationState === "dashWindup"
         ) {
-            drawAnesthesiaDashWarning(
-                enemy
-            );
+            drawAnesthesiaDashWarning(enemy);
         }
     });
 }
+
+// ============================================================================
+// ADVERTENCIAS QUIRÚRGICAS.
+// ============================================================================
 
 function drawSurgicalWarnings() {
     enemies.forEach((enemy) => {
@@ -969,12 +925,10 @@ function drawSurgicalWarnings() {
         }
 
         const centerX =
-            enemy.x +
-            enemy.width / 2;
+            enemy.x + enemy.width / 2;
 
         const centerY =
-            enemy.y +
-            enemy.height / 2;
+            enemy.y + enemy.height / 2;
 
         const aimX =
             enemy.aimTargetX -
@@ -996,27 +950,22 @@ function drawSurgicalWarnings() {
                 aimX
             );
 
-        const progress =
-            Math.max(
-                0,
-
-                Math.min(
-                    1,
-
-                    1 -
-                        enemy.surgicalTimer /
-                            enemy.currentAimDuration
-                )
-            );
+        const progress = Math.max(
+            0,
+            Math.min(
+                1,
+                1 -
+                enemy.surgicalTimer /
+                enemy.currentAimDuration
+            )
+        );
 
         const precision =
-            enemy.currentPattern ===
-            "precision";
+            enemy.currentPattern === "precision";
 
-        ctx.strokeStyle =
-            precision
-                ? "rgba(255, 225, 115, 0.95)"
-                : "rgba(255, 155, 115, 0.95)";
+        ctx.strokeStyle = precision
+            ? "rgba(255, 225, 115, 0.95)"
+            : "rgba(255, 155, 115, 0.95)";
 
         ctx.lineWidth =
             2 +
@@ -1029,16 +978,13 @@ function drawSurgicalWarnings() {
             enemy.height + 10
         );
 
-        const offsets =
-            precision
-                ? [
-                    0
-                ]
-                : [
-                    -enemy.coverageSpread,
-                    0,
-                    enemy.coverageSpread
-                ];
+        const offsets = precision
+            ? [0]
+            : [
+                -enemy.coverageSpread,
+                0,
+                enemy.coverageSpread
+            ];
 
         offsets.forEach((offset) => {
             const angle =
@@ -1048,9 +994,7 @@ function drawSurgicalWarnings() {
             const length =
                 Math.min(
                     290,
-
-                    aimDistance +
-                        30
+                    aimDistance + 30
                 );
 
             ctx.beginPath();
@@ -1062,23 +1006,20 @@ function drawSurgicalWarnings() {
 
             ctx.lineTo(
                 centerX +
-                    Math.cos(angle) *
-                        length,
+                Math.cos(angle) *
+                length,
 
                 centerY +
-                    Math.sin(angle) *
-                        length
+                Math.sin(angle) *
+                length
             );
 
-            ctx.strokeStyle =
-                precision
-                    ? "rgba(255, 238, 175, 0.8)"
-                    : "rgba(255, 185, 140, 0.75)";
+            ctx.strokeStyle = precision
+                ? "rgba(255, 238, 175, 0.8)"
+                : "rgba(255, 185, 140, 0.75)";
 
             ctx.lineWidth =
-                precision
-                    ? 2.6
-                    : 1.8;
+                precision ? 2.6 : 1.8;
 
             ctx.stroke();
         });
@@ -1091,24 +1032,22 @@ function drawSurgicalWarnings() {
 
         ctx.arc(
             enemy.aimTargetX,
-
             enemy.aimTargetY,
-
             Math.max(
                 7,
-
-                16 -
-                    progress * 8
+                16 - progress * 8
             ),
-
             0,
-
             Math.PI * 2
         );
 
         ctx.stroke();
     });
 }
+
+// ============================================================================
+// DIBUJO DE LA SALA.
+// ============================================================================
 
 function drawRoom() {
     ctx.fillStyle =
@@ -1126,108 +1065,69 @@ function drawRoom() {
     drawRoomDoors();
 
     if (
-        isCurrentRoomType(
-            "junction"
-        )
+        isCurrentRoomType("junction")
     ) {
         drawJunctionWarnings();
-
     } else if (
-        isCurrentRoomType(
-            "anesthesiaPreparation"
-        )
+        isCurrentRoomType("anesthesiaPreparation")
     ) {
         drawAnesthesiaWarnings();
-
     } else if (
-        isCurrentRoomType(
-            "surgicalPreparation"
-        )
+        isCurrentRoomType("surgicalPreparation")
     ) {
         drawSurgicalWarnings();
     }
 }
 
+// ============================================================================
+// JEFE Y GENERACIÓN DE ENEMIGOS.
+// ============================================================================
+
 function resetBossForFight() {
-    Object.assign(
-        boss,
-        {
-            active:
-                true,
+    Object.assign(boss, {
+        active: true,
+        defeated: false,
+        health: boss.maxHealth,
 
-            defeated:
-                false,
+        x:
+            canvas.width / 2 -
+            boss.width / 2,
 
-            health:
-                boss.maxHealth,
+        y: 100,
 
-            x:
-                canvas.width / 2 -
-                boss.width / 2,
+        phase: 1,
 
-            y:
-                100,
+        spawned75: false,
+        spawned50: false,
+        spawned25: false,
 
-            phase:
-                1,
+        assistantCommandTimer: 90,
+        assistantTurn: 0,
 
-            spawned75:
-                false,
+        anesthesiaImmunityUntil: 0,
 
-            spawned50:
-                false,
+        attackSequence: 0,
+        attackTimer: 55,
 
-            spawned25:
-                false,
+        dashTimer: 190,
+        dashDuration: 0,
 
-            assistantCommandTimer:
-                90,
+        enraged: false,
+        touchingPlayer: false
+    });
 
-            assistantTurn:
-                0,
-
-            anesthesiaImmunityUntil:
-                0,
-
-            attackSequence:
-                0,
-
-            attackTimer:
-                55,
-
-            dashTimer:
-                190,
-
-            dashDuration:
-                0,
-
-            enraged:
-                false,
-
-            touchingPlayer:
-                false
-        }
-    );
-
-    bossProjectiles.length =
-        0;
+    bossProjectiles.length = 0;
 }
 
-function spawnRoomEnemies(
-    room
-) {
+function spawnRoomEnemies(room) {
     if (
-        room.type ===
-        "anesthesiaPreparation"
+        room.type === "anesthesiaPreparation"
     ) {
         spawnAnesthesiaPreparationEnemies();
-
     } else if (
-        room.type ===
-        "surgicalPreparation"
+        room.type === "surgicalPreparation"
     ) {
         spawnSurgicalPreparationEnemies();
-
     } else {
         spawnEnemies(
             room.enemyCount
@@ -1235,26 +1135,22 @@ function spawnRoomEnemies(
     }
 }
 
-function changeRoom(
-    newRoom
-) {
+// ============================================================================
+// CAMBIO DE SALA.
+// ============================================================================
+
+function changeRoom(newRoom) {
     if (
         !rooms[newRoom] ||
-
-        !isRoomEnabled(
-            newRoom
-        ) ||
-
+        !isRoomEnabled(newRoom) ||
         changingRoom
     ) {
         return;
     }
 
-    changingRoom =
-        true;
+    changingRoom = true;
 
-    currentRoom =
-        newRoom;
+    currentRoom = newRoom;
 
     [
         enemies,
@@ -1262,12 +1158,10 @@ function changeRoom(
         enemyProjectiles,
         bossProjectiles
     ].forEach((collection) => {
-        collection.length =
-            0;
+        collection.length = 0;
     });
 
-    boss.touchingPlayer =
-        false;
+    boss.touchingPlayer = false;
 
     player.x =
         canvas.width / 2 -
@@ -1280,128 +1174,78 @@ function changeRoom(
     const room =
         rooms[currentRoom];
 
-    room.visited =
-        true;
+    room.visited = true;
 
-    if (
-        room.type === "boss"
-    ) {
-        if (
-            !room.cleared
-        ) {
+    if (room.type === "boss") {
+        if (!room.cleared) {
             resetBossForFight();
-
         } else {
-            boss.active =
-                false;
-
-            boss.defeated =
-                true;
+            boss.active = false;
+            boss.defeated = true;
         }
-
     } else {
-        boss.active =
-            false;
+        boss.active = false;
 
         boss.defeated =
             isBossDefeated();
 
-        boss.touchingPlayer =
-            false;
+        boss.touchingPlayer = false;
 
-        if (
-            !room.cleared
-        ) {
-            spawnRoomEnemies(
-                room
-            );
+        if (!room.cleared) {
+            spawnRoomEnemies(room);
         }
 
-        if (
-            room.type ===
-            "pharmacy"
-        ) {
+        if (room.type === "pharmacy") {
             ensureBrightHeartInPharmacy();
         }
     }
 
-    changingRoom =
-        false;
+    changingRoom = false;
 }
 
-function moveThroughDoor(
-    direction
-) {
+function moveThroughDoor(direction) {
     const room =
         rooms[currentRoom];
 
     const nextRoom =
         room[direction];
 
-    if (
-        !canUseDoor(
-            direction
-        )
-    ) {
+    if (!canUseDoor(direction)) {
         return;
     }
 
     if (
-        getRoomType(
-            nextRoom
-        ) === "boss" &&
-
+        getRoomType(nextRoom) === "boss" &&
         !rooms[nextRoom].cleared
     ) {
-        bossDoorUnlocked =
-            true;
+        bossDoorUnlocked = true;
     }
 
-    changeRoom(
-        nextRoom
-    );
+    changeRoom(nextRoom);
 
-    if (
-        direction === "right"
-    ) {
-        player.x =
-            25;
-
-    } else if (
-        direction === "left"
-    ) {
+    if (direction === "right") {
+        player.x = 25;
+    } else if (direction === "left") {
         player.x =
             canvas.width -
             player.width -
             25;
-
-    } else if (
-        direction === "up"
-    ) {
+    } else if (direction === "up") {
         player.y =
             canvas.height -
             player.height -
             25;
-
-    } else if (
-        direction === "down"
-    ) {
-        player.y =
-            25;
+    } else if (direction === "down") {
+        player.y = 25;
     }
 }
 
 function checkRoomChange() {
     if (
         changingRoom ||
-
         (
-            isCurrentRoomType(
-                "boss"
-            ) &&
-
+            isCurrentRoomType("boss") &&
             boss.active &&
-
             !boss.defeated
         )
     ) {
@@ -1411,9 +1255,7 @@ function checkRoomChange() {
     const room =
         rooms[currentRoom];
 
-    if (
-        !room.cleared
-    ) {
+    if (!room.cleared) {
         return;
     }
 
@@ -1424,33 +1266,18 @@ function checkRoomChange() {
         canvas.height / 2;
 
     const insideHorizontalDoor =
-        player.y +
-            player.height / 2 >=
-                centerY - 45 &&
-
-        player.y +
-            player.height / 2 <=
-                centerY + 45;
+        player.y + player.height / 2 >= centerY - 45 &&
+        player.y + player.height / 2 <= centerY + 45;
 
     const insideVerticalDoor =
-        player.x +
-            player.width / 2 >=
-                centerX - 45 &&
-
-        player.x +
-            player.width / 2 <=
-                centerX + 45;
+        player.x + player.width / 2 >= centerX - 45 &&
+        player.x + player.width / 2 <= centerX + 45;
 
     if (
-        player.x +
-            player.width >=
-                canvas.width - 20 &&
-
+        player.x + player.width >= canvas.width - 20 &&
         insideHorizontalDoor
     ) {
-        moveThroughDoor(
-            "right"
-        );
+        moveThroughDoor("right");
 
         return;
     }
@@ -1459,9 +1286,7 @@ function checkRoomChange() {
         player.x <= 20 &&
         insideHorizontalDoor
     ) {
-        moveThroughDoor(
-            "left"
-        );
+        moveThroughDoor("left");
 
         return;
     }
@@ -1470,25 +1295,23 @@ function checkRoomChange() {
         player.y <= 20 &&
         insideVerticalDoor
     ) {
-        moveThroughDoor(
-            "up"
-        );
+        moveThroughDoor("up");
 
         return;
     }
 
     if (
-        player.y +
-            player.height >=
-                canvas.height - 20 &&
-
+        player.y + player.height >= canvas.height - 20 &&
         insideVerticalDoor
     ) {
-        moveThroughDoor(
-            "down"
-        );
+        moveThroughDoor("down");
     }
 }
+
+// ============================================================================
+// INFORMACIÓN DE SALA.
+// ============================================================================
+
 function drawRoomInfo() {
     ctx.fillStyle = "white";
 
@@ -1505,80 +1328,57 @@ function drawRoomInfo() {
         canvas.height - 24
     );
 }
-function getMinimapLayout(
-    enabledRooms
-) {
+
+// ============================================================================
+// MINIMAPA.
+// ============================================================================
+
+function getMinimapLayout(enabledRooms) {
     const coordinatesX =
         enabledRooms.map(
-            (room) =>
-                room.mapX
+            (room) => room.mapX
         );
 
     const coordinatesY =
         enabledRooms.map(
-            (room) =>
-                room.mapY
+            (room) => room.mapY
         );
 
     const minMapX =
-        Math.min(
-            ...coordinatesX
-        );
+        Math.min(...coordinatesX);
 
     const maxMapX =
-        Math.max(
-            ...coordinatesX
-        );
+        Math.max(...coordinatesX);
 
     const minMapY =
-        Math.min(
-            ...coordinatesY
-        );
+        Math.min(...coordinatesY);
 
     const maxMapY =
-        Math.max(
-            ...coordinatesY
-        );
+        Math.max(...coordinatesY);
 
-    const roomSize =
-        22;
+    const roomSize = 22;
 
-    const gap =
-        7;
+    const gap = 7;
 
     const step =
-        roomSize +
-        gap;
+        roomSize + gap;
 
     const mapWidth =
-        (
-            maxMapX -
-            minMapX +
-            1
-        ) *
-            step -
+        (maxMapX - minMapX + 1) *
+        step -
         gap;
 
     const mapHeight =
-        (
-            maxMapY -
-            minMapY +
-            1
-        ) *
-            step -
+        (maxMapY - minMapY + 1) *
+        step -
         gap;
 
     return {
         minMapX,
-
         minMapY,
-
         roomSize,
-
         step,
-
         mapWidth,
-
         mapHeight,
 
         mapX:
@@ -1586,44 +1386,27 @@ function getMinimapLayout(
             mapWidth -
             18,
 
-        mapY:
-            18
+        mapY: 18
     };
 }
 
-function getMinimapRoomPosition(
-    room,
-    layout
-) {
+function getMinimapRoomPosition(room, layout) {
     return {
         x:
             layout.mapX +
-
-            (
-                room.mapX -
-                layout.minMapX
-            ) *
-                layout.step,
+            (room.mapX - layout.minMapX) *
+            layout.step,
 
         y:
             layout.mapY +
-
-            (
-                room.mapY -
-                layout.minMapY
-            ) *
-                layout.step
+            (room.mapY - layout.minMapY) *
+            layout.step
     };
 }
 
-function drawMinimapConnections(
-    enabledRooms,
-    layout
-) {
+function drawMinimapConnections(enabledRooms, layout) {
     enabledRooms.forEach((room) => {
-        if (
-            !room.visited
-        ) {
+        if (!room.visited) {
             return;
         }
 
@@ -1650,12 +1433,8 @@ function drawMinimapConnections(
 
             if (
                 !targetRoom ||
-
                 !targetRoom.visited ||
-
-                !isRoomEnabled(
-                    targetRoomId
-                )
+                !isRoomEnabled(targetRoomId)
             ) {
                 return;
             }
@@ -1669,8 +1448,7 @@ function drawMinimapConnections(
             ctx.strokeStyle =
                 "rgba(170, 170, 170, 0.55)";
 
-            ctx.lineWidth =
-                2;
+            ctx.lineWidth = 2;
 
             ctx.beginPath();
 
@@ -1681,10 +1459,10 @@ function drawMinimapConnections(
 
             ctx.lineTo(
                 target.x +
-                    layout.roomSize / 2,
+                layout.roomSize / 2,
 
                 target.y +
-                    layout.roomSize / 2
+                layout.roomSize / 2
             );
 
             ctx.stroke();
@@ -1692,32 +1470,17 @@ function drawMinimapConnections(
     });
 }
 
-function getMinimapRoomColor(
-    room,
-    isCurrent
-) {
-    if (
-        room.type === "boss"
-    ) {
-        return (
-            "rgba(105, 25, 25, 0.92)"
-        );
+function getMinimapRoomColor(room, isCurrent) {
+    if (room.type === "boss") {
+        return "rgba(105, 25, 25, 0.92)";
     }
 
-    if (
-        room.type === "pharmacy"
-    ) {
-        return (
-            "rgba(45, 120, 68, 0.92)"
-        );
+    if (room.type === "pharmacy") {
+        return "rgba(45, 120, 68, 0.92)";
     }
 
-    if (
-        isCurrent
-    ) {
-        return (
-            "rgba(245, 245, 245, 0.96)"
-        );
+    if (isCurrent) {
+        return "rgba(245, 245, 245, 0.96)";
     }
 
     return room.cleared
@@ -1725,10 +1488,7 @@ function getMinimapRoomColor(
         : "rgba(75, 75, 75, 0.84)";
 }
 
-function drawMinimapRoom(
-    room,
-    layout
-) {
+function drawMinimapRoom(room, layout) {
     const position =
         getMinimapRoomPosition(
             room,
@@ -1745,12 +1505,9 @@ function drawMinimapRoom(
         layout.roomSize;
 
     const isCurrent =
-        room.id ===
-        currentRoom;
+        room.id === currentRoom;
 
-    if (
-        !room.visited
-    ) {
+    if (!room.visited) {
         ctx.fillStyle =
             "rgba(10, 10, 10, 0.72)";
 
@@ -1764,8 +1521,7 @@ function drawMinimapRoom(
         ctx.strokeStyle =
             "rgba(70, 70, 70, 0.55)";
 
-        ctx.lineWidth =
-            1;
+        ctx.lineWidth = 1;
 
         ctx.strokeRect(
             x,
@@ -1788,12 +1544,8 @@ function drawMinimapRoom(
 
         ctx.fillText(
             "?",
-
-            x +
-                size / 2,
-
-            y +
-                size / 2
+            x + size / 2,
+            y + size / 2
         );
 
         return;
@@ -1812,15 +1564,12 @@ function drawMinimapRoom(
         size
     );
 
-    ctx.strokeStyle =
-        isCurrent
-            ? "rgba(255, 220, 90, 0.95)"
-            : "rgba(220, 220, 220, 0.48)";
+    ctx.strokeStyle = isCurrent
+        ? "rgba(255, 220, 90, 0.95)"
+        : "rgba(220, 220, 220, 0.48)";
 
     ctx.lineWidth =
-        isCurrent
-            ? 2
-            : 1;
+        isCurrent ? 2 : 1;
 
     ctx.strokeRect(
         x,
@@ -1853,22 +1602,17 @@ function drawMinimapRoom(
             ? "B"
             : "+",
 
-        x +
-            size / 2,
+        x + size / 2,
 
-        y +
-            size / 2
+        y + size / 2
     );
 }
 
 function drawMinimap() {
     const enabledRooms =
-        Object.values(
-            rooms
-        ).filter((room) =>
-            isRoomEnabled(
-                room.id
-            )
+        Object.values(rooms).filter(
+            (room) =>
+                isRoomEnabled(room.id)
         );
 
     const layout =
@@ -1881,8 +1625,11 @@ function drawMinimap() {
 
     ctx.fillRect(
         layout.mapX - 8,
+
         layout.mapY - 8,
+
         layout.mapWidth + 16,
+
         layout.mapHeight + 16
     );
 
@@ -1904,10 +1651,18 @@ function drawMinimap() {
     ctx.textBaseline =
         "alphabetic";
 }
+
+// ============================================================================
+// REINICIO Y CAMBIO DE PISO.
+// ============================================================================
+
 function resetRoomsForNewRun() {
     currentLevel = 1;
 
-    rooms = createRoomsForLevel(currentLevel);
+    rooms =
+        createRoomsForLevel(
+            currentLevel
+        );
 
     const startRoom =
         getCurrentLevelConfig().startRoom;
@@ -1924,7 +1679,8 @@ function resetRoomsForNewRun() {
         }
     });
 
-    currentRoom = startRoom;
+    currentRoom =
+        startRoom;
 
     changingRoom = false;
 
@@ -1959,7 +1715,9 @@ function advanceToNextLevel() {
         nextLevel;
 
     rooms =
-        createRoomsForLevel(currentLevel);
+        createRoomsForLevel(
+            currentLevel
+        );
 
     currentRoom =
         nextLevelConfig.startRoom;
@@ -2009,6 +1767,7 @@ function advanceToNextLevel() {
 
     return true;
 }
+
 function checkRoomClear() {
     const room =
         rooms[currentRoom];
@@ -2018,7 +1777,6 @@ function checkRoomClear() {
         enemies.length === 0 &&
         !room.cleared
     ) {
-        room.cleared =
-            true;
+        room.cleared = true;
     }
 }
