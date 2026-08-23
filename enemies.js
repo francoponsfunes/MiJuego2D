@@ -2865,6 +2865,228 @@ function spawnTransferIntroductionEnemies() {
 
     enemies.push(createEnemy(leper));
 }
+function spawnTransferCorridorEnemies() {
+
+    // ============================================================
+    // CAMILLERO
+    // ============================================================
+
+    const stretcher =
+        createStretcherBearerConfig();
+
+    stretcher.x =
+        canvas.width / 2 + 75;
+
+    stretcher.y = 95;
+
+    stretcher.stateTimer = 19;
+
+    stretcher.repositionDuration = 25;
+
+    stretcher.recoverDuration = 20;
+
+    // Embestida aproximadamente un 5 % más lenta.
+    stretcher.chargeSpeed = 8.15;
+
+    enemies.push(
+        createEnemy(stretcher)
+    );
+
+
+    // ============================================================
+    // LEPROSO INTERCEPTOR
+    // ============================================================
+
+    const leper =
+        createLeperConfig(0);
+
+    leper.x =
+        canvas.width / 2 - 55;
+
+    leper.y =
+        canvas.height - 115;
+
+    leper.flankSide = 1;
+
+    leper.leperTimer = 27;
+
+    leper.transferHunter = true;
+
+    leper.transferRushSpeed = 3.75;
+
+    leper.transferTargetX =
+        player.x + player.width / 2;
+
+    leper.transferTargetY =
+        player.y + player.height / 2;
+
+    enemies.push(
+        createEnemy(leper)
+    );
+
+
+    // ============================================================
+    // CIRUJANO
+    // ============================================================
+
+    enemies.push(
+
+        createEnemy({
+
+            type: "surgeon",
+
+            corridorSupport: true,
+
+            x: canvas.width - 140,
+
+            y: canvas.height - 140,
+
+            width: 44,
+
+            height: 44,
+
+            speed: 1.35,
+
+            health: 7,
+
+            maxHealth: 7,
+
+            color: "#e7bc68",
+
+            knockbackResistance: 2,
+
+            movementX: 0,
+
+            movementY: 0,
+
+            movementSpeed: 1.55,
+
+            strafeDirection: -1,
+
+            strafeTimer: 82,
+
+            minimumDistance: 155,
+
+            maximumDistance: 310,
+
+            aimWarningDuration: 18,
+
+            shootTimer: 48,
+
+            shootCooldown: 78,
+
+            commandVolleyState: "idle",
+
+            commandVolleyTimer: 0,
+
+            commandVolleySpread: 0.2,
+
+            commandVolleyCount: 0,
+
+            corridorShotsFired: 0,
+
+            coordinatedShotCount: 0,
+
+            corridorShotScheduled: false,
+
+            corridorShotsSinceFan: 0,
+
+            corridorFanCount: 0,
+
+            fanAttackPending: false,
+
+            lastCorridorAttack: null
+        })
+    );
+}
+function spawnInpatientJunctionEnemies() {
+
+    // ============================================================
+    // CELADOR
+    // ============================================================
+
+    const guard =
+        createSecurityGuardConfig();
+
+    guard.x =
+        canvas.width / 2 -
+        (guard.width || 48) / 2;
+
+    guard.y =
+        canvas.height / 2 - 105;
+
+    guard.inpatientJunctionGuard = true;
+
+    guard.junctionFlankSide = 1;
+
+    enemies.push(
+        createEnemy(guard)
+    );
+
+
+    // ============================================================
+    // CAMILLERO
+    // ============================================================
+
+    const stretcher =
+        createStretcherBearerConfig();
+
+    stretcher.x =
+        canvas.width - 170;
+
+    stretcher.y = 95;
+
+    stretcher.stateTimer = 29;
+
+    stretcher.repositionDuration = 27;
+
+    stretcher.recoverDuration = 23;
+
+    // La embestida baja de 8.15 a 7.50 solamente en esta sala.
+    stretcher.chargeSpeed = 7.50;
+
+    stretcher.inpatientJunctionStretcher = true;
+
+    enemies.push(
+        createEnemy(stretcher)
+    );
+
+
+    // ============================================================
+    // ENFERMERA
+    // ============================================================
+
+    const escort =
+        createSecurityEscortConfig(0);
+
+    escort.x = 110;
+
+    escort.y = 130;
+
+    escort.securityEscort = true;
+
+    escort.inpatientJunctionEscort = true;
+
+    escort.flankSide = -1;
+
+    if (
+        Number.isFinite(
+            escort.nurseTimer
+        )
+    ) {
+
+        escort.nurseTimer = Math.max(
+
+            36,
+
+            escort.nurseTimer
+        );
+    }
+
+    enemies.push(
+        createEnemy(escort)
+    );
+}
 function updateStretcherBearer(enemy, deltaTime) {
     const enemyX = enemy.x + enemy.width / 2;
     const enemyY = enemy.y + enemy.height / 2;
@@ -4292,67 +4514,1201 @@ function updateSecurityEscortNurse(enemy, deltaTime) {
         }
     }
 }
+function updateTransferCorridorSurgeon(enemy, deltaTime) {
+
+    const enemyX =
+        enemy.x + enemy.width / 2;
+
+    const enemyY =
+        enemy.y + enemy.height / 2;
+
+    const playerX =
+        player.x + player.width / 2;
+
+    const playerY =
+        player.y + player.height / 2;
+
+    const distanceX =
+        playerX - enemyX;
+
+    const distanceY =
+        playerY - enemyY;
+
+    const distance =
+        Math.hypot(
+            distanceX,
+            distanceY
+        ) || 1;
+
+    const directionX =
+        distanceX / distance;
+
+    const directionY =
+        distanceY / distance;
+
+
+    // ============================================================
+    // LOCALIZAR AL CAMILLERO
+    // ============================================================
+
+    const stretcher = enemies.find((candidate) =>
+
+        candidate.type === "stretcherBearer"
+    );
+
+
+    // ============================================================
+    // CUÁNTOS COMPAÑEROS SIGUEN EN LA SALA
+    // ============================================================
+
+    const alliesAlive = enemies.filter((candidate) =>
+
+        candidate !== enemy
+
+    ).length;
+
+    const preciseShotsBeforeFan =
+
+        alliesAlive >= 2
+
+            ? 2
+
+            : 1;
+
+
+    // ============================================================
+    // COMPROBAR SI EL CAMILLERO ESTÁ ATACANDO
+    // ============================================================
+
+    const stretcherAttacking = Boolean(
+
+        stretcher &&
+
+        [
+            "windup",
+            "charge"
+
+        ].includes(
+            stretcher.stretcherState
+        )
+    );
+
+
+    // ============================================================
+    // PROGRAMAR EL ATAQUE EN ABANICO
+    // ============================================================
+
+    if (
+
+        enemy.corridorShotsSinceFan >=
+
+        preciseShotsBeforeFan
+
+    ) {
+
+        enemy.fanAttackPending = true;
+    }
+
+    enemy.commandVolleySpread =
+
+        alliesAlive === 0
+
+            ? 0.25
+
+            : 0.21;
+
+    enemy.commandVolleyState =
+
+        enemy.fanAttackPending &&
+
+        !stretcherAttacking &&
+
+        enemy.shootTimer <=
+            enemy.aimWarningDuration
+
+            ? "windup"
+
+            : "idle";
+
+
+    // ============================================================
+    // MOVIMIENTO LATERAL
+    // ============================================================
+
+    enemy.strafeTimer -= deltaTime;
+
+    if (
+        enemy.strafeTimer <= 0
+    ) {
+
+        enemy.strafeDirection *= -1;
+
+        enemy.strafeTimer =
+
+            78 +
+
+            Math.random() * 34;
+    }
+
+    let movementX =
+
+        -directionY *
+
+        enemy.strafeDirection;
+
+    let movementY =
+
+        directionX *
+
+        enemy.strafeDirection;
+
+
+    // ============================================================
+    // MANTENER DISTANCIA DEL JUGADOR
+    // ============================================================
+
+    if (
+
+        distance <
+
+        enemy.minimumDistance
+
+    ) {
+
+        movementX -=
+            directionX * 1.35;
+
+        movementY -=
+            directionY * 1.35;
+
+    } else if (
+
+        distance >
+
+        enemy.maximumDistance
+
+    ) {
+
+        movementX +=
+            directionX * 0.85;
+
+        movementY +=
+            directionY * 0.85;
+    }
+
+
+    // ============================================================
+    // EVITAR AGRUPARSE CON EL CAMILLERO
+    // ============================================================
+
+    if (stretcher) {
+
+        const stretcherX =
+
+            stretcher.x +
+
+            stretcher.width / 2;
+
+        const stretcherY =
+
+            stretcher.y +
+
+            stretcher.height / 2;
+
+        const separationX =
+
+            enemyX -
+
+            stretcherX;
+
+        const separationY =
+
+            enemyY -
+
+            stretcherY;
+
+        const separation =
+
+            Math.hypot(
+
+                separationX,
+
+                separationY
+
+            ) || 1;
+
+        if (
+            separation < 245
+        ) {
+
+            movementX +=
+
+                separationX /
+
+                separation *
+
+                1.15;
+
+            movementY +=
+
+                separationY /
+
+                separation *
+
+                1.15;
+        }
+    }
+
+
+    // ============================================================
+    // DISMINUIR MOVIMIENTO MIENTRAS APUNTA
+    // ============================================================
+
+    const movementDistance =
+
+        Math.hypot(
+
+            movementX,
+
+            movementY
+
+        ) || 1;
+
+    const aiming =
+
+        enemy.shootTimer <=
+
+        enemy.aimWarningDuration;
+
+    const movementMultiplier =
+
+        aiming
+
+            ? 0.34
+
+            : 1;
+
+    enemy.movementX =
+
+        movementX /
+
+        movementDistance *
+
+        enemy.movementSpeed *
+
+        movementMultiplier;
+
+    enemy.movementY =
+
+        movementY /
+
+        movementDistance *
+
+        enemy.movementSpeed *
+
+        movementMultiplier;
+
+    enemy.x +=
+
+        enemy.movementX *
+
+        deltaTime;
+
+    enemy.y +=
+
+        enemy.movementY *
+
+        deltaTime;
+
+
+    // ============================================================
+    // COORDINAR DISPARO PRECISO CON EL CAMILLERO
+    // ============================================================
+
+    if (
+
+        stretcher &&
+
+        stretcher.stretcherState === "windup" &&
+
+        !enemy.corridorShotScheduled &&
+
+        !enemy.fanAttackPending &&
+
+        enemy.shootTimer > 12
+
+    ) {
+
+        enemy.shootTimer = Math.min(
+
+            enemy.shootTimer,
+
+            Math.max(
+
+                12,
+
+                stretcher.stateTimer + 4
+            )
+        );
+
+        enemy.corridorShotScheduled = true;
+    }
+
+    if (
+        !stretcherAttacking
+    ) {
+
+        enemy.corridorShotScheduled = false;
+    }
+
+
+    // ============================================================
+    // LANZAR EL ABANICO DURANTE LA RECUPERACIÓN
+    // ============================================================
+
+    if (
+
+        enemy.fanAttackPending &&
+
+        stretcher &&
+
+        stretcher.stretcherState === "recover" &&
+
+        enemy.shootTimer > 18
+
+    ) {
+
+        enemy.shootTimer = Math.max(
+
+            12,
+
+            Math.min(
+
+                18,
+
+                stretcher.stateTimer - 3
+            )
+        );
+    }
+
+    enemy.shootTimer -= deltaTime;
+
+    if (
+        enemy.shootTimer > 0
+    ) {
+
+        return;
+    }
+
+
+    // ============================================================
+    // ANTICIPAR LA DIRECCIÓN DEL JUGADOR
+    // ============================================================
+
+    const inputX =
+
+        Number(Boolean(keys.d)) -
+
+        Number(Boolean(keys.a));
+
+    const inputY =
+
+        Number(Boolean(keys.s)) -
+
+        Number(Boolean(keys.w));
+
+    const inputDistance =
+
+        Math.hypot(
+
+            inputX,
+
+            inputY
+
+        ) || 1;
+
+    const anticipation =
+
+        stretcherAttacking
+
+            ? 76
+
+            : 48;
+
+    const targetX =
+
+        playerX +
+
+        inputX /
+
+        inputDistance *
+
+        anticipation;
+
+    const targetY =
+
+        playerY +
+
+        inputY /
+
+        inputDistance *
+
+        anticipation;
+
+    const directAngle = Math.atan2(
+
+        playerY - enemyY,
+
+        playerX - enemyX
+    );
+
+    const predictiveAngle = Math.atan2(
+
+        targetY - enemyY,
+
+        targetX - enemyX
+    );
+
+    let angleOffset =
+
+        predictiveAngle -
+
+        directAngle;
+
+    while (
+        angleOffset > Math.PI
+    ) {
+
+        angleOffset -=
+
+            Math.PI * 2;
+    }
+
+    while (
+        angleOffset < -Math.PI
+    ) {
+
+        angleOffset +=
+
+            Math.PI * 2;
+    }
+
+    const predictiveOffset = Math.max(
+
+        -0.28,
+
+        Math.min(
+
+            0.28,
+
+            angleOffset
+        )
+    );
+
+
+    // ============================================================
+    // SELECCIONAR DISPARO PRECISO O ABANICO
+    // ============================================================
+
+    const fireFan =
+
+        enemy.fanAttackPending &&
+
+        !stretcherAttacking;
+
+    if (
+        fireFan
+    ) {
+
+        [
+
+            -enemy.commandVolleySpread,
+
+            0,
+
+            enemy.commandVolleySpread
+
+        ].forEach((fanOffset) => {
+
+            shootEnemyProjectile(
+
+                enemy,
+
+                "scalpel",
+
+                predictiveOffset + fanOffset
+            );
+        });
+
+        enemy.corridorShotsSinceFan = 0;
+
+        enemy.corridorFanCount++;
+
+        enemy.commandVolleyCount++;
+
+        enemy.fanAttackPending = false;
+
+        enemy.lastCorridorAttack = "fan";
+
+    } else {
+
+        shootEnemyProjectile(
+
+            enemy,
+
+            "scalpel",
+
+            predictiveOffset
+        );
+
+        enemy.corridorShotsSinceFan++;
+
+        enemy.fanAttackPending =
+
+            enemy.corridorShotsSinceFan >=
+
+            preciseShotsBeforeFan;
+
+        enemy.lastCorridorAttack = "precision";
+    }
+
+    enemy.corridorShotsFired++;
+
+    enemy.commandVolleyState = "idle";
+
+    if (
+        stretcherAttacking
+    ) {
+
+        enemy.coordinatedShotCount++;
+    }
+
+
+    // ============================================================
+    // CADENCIA SEGÚN LOS ENEMIGOS RESTANTES
+    // ============================================================
+
+    const attackCooldown =
+
+        alliesAlive === 0
+
+            ? Math.max(
+
+                48,
+
+                enemy.shootCooldown - 24
+            )
+
+            : stretcher
+
+                ? enemy.shootCooldown +
+
+                  Math.random() * 12
+
+                : Math.max(
+
+                    55,
+
+                    enemy.shootCooldown - 16
+                );
+
+    enemy.shootTimer =
+
+        attackCooldown +
+
+        (
+            fireFan
+
+                ? 7
+
+                : 0
+        );
+}
+function updateInpatientJunctionStretcher(enemy, deltaTime) {
+
+    // ============================================================
+    // LOCALIZAR AL CELADOR
+    // ============================================================
+
+    const guard = enemies.find((candidate) =>
+
+        candidate.type === "securityGuard" &&
+
+        candidate.inpatientJunctionGuard
+    );
+
+
+    // ============================================================
+    // LOCALIZAR A LA ENFERMERA
+    // ============================================================
+
+    const escort = enemies.find((candidate) =>
+
+        candidate.type === "aggressiveNurse" &&
+
+        candidate.inpatientJunctionEscort
+    );
+
+
+    // ============================================================
+    // COORDINACIÓN MIENTRAS EL CAMILLERO SE REPOSICIONA
+    // ============================================================
+
+    if (
+
+        guard &&
+
+        enemy.stretcherState === "reposition"
+
+    ) {
+
+        const playerX =
+            player.x + player.width / 2;
+
+        const playerY =
+            player.y + player.height / 2;
+
+        const enemyX =
+            enemy.x + enemy.width / 2;
+
+        const enemyY =
+            enemy.y + enemy.height / 2;
+
+        const directionX =
+            playerX - enemyX;
+
+        const directionY =
+            playerY - enemyY;
+
+        const distance =
+
+            Math.hypot(
+
+                directionX,
+
+                directionY
+
+            ) || 1;
+
+        const guardX =
+
+            guard.x +
+
+            guard.width / 2 -
+
+            playerX;
+
+        const guardY =
+
+            guard.y +
+
+            guard.height / 2 -
+
+            playerY;
+
+        const guardSide =
+
+            guardX *
+
+            (
+                -directionY / distance
+            )
+
+            +
+
+            guardY *
+
+            (
+                directionX / distance
+            );
+
+
+        // El camillero busca un ángulo distinto al del celador.
+        if (
+            Math.abs(guardSide) > 18
+        ) {
+
+            enemy.orbitDirection =
+
+                guardSide > 0
+
+                    ? -1
+
+                    : 1;
+        }
+
+
+        // Evita iniciar su carga exactamente durante el empuje.
+        if (
+
+            [
+                "windup",
+                "bash"
+
+            ].includes(
+                guard.guardState
+            )
+
+        ) {
+
+            enemy.stateTimer = Math.max(
+
+                enemy.stateTimer,
+
+                11
+            );
+
+        } else if (
+
+            guard.guardState === "exposed"
+
+        ) {
+
+            enemy.stateTimer = Math.min(
+
+                enemy.stateTimer,
+
+                13
+            );
+        }
+
+
+        // Aprovecha cuando la enfermera obliga a cambiar de posición.
+        if (
+
+            escort &&
+
+            escort.nurseState === "rush" &&
+
+            guard.guardState !== "windup" &&
+
+            guard.guardState !== "bash"
+
+        ) {
+
+            enemy.stateTimer = Math.min(
+
+                enemy.stateTimer,
+
+                14
+            );
+        }
+    }
+
+
+    // Mantiene todas las mecánicas originales del camillero.
+    updateStretcherBearer(
+
+        enemy,
+
+        deltaTime
+    );
+}
+function updateInpatientJunctionGuard(enemy, deltaTime) {
+
+    // ============================================================
+    // LOCALIZAR AL CAMILLERO
+    // ============================================================
+
+    const stretcher = enemies.find((candidate) =>
+
+        candidate.type === "stretcherBearer" &&
+
+        candidate.inpatientJunctionStretcher
+    );
+
+
+    // ============================================================
+    // INTERCEPTAR LA POSIBLE RUTA DE ESCAPE
+    // ============================================================
+
+    if (
+
+        stretcher &&
+
+        enemy.guardState === "hold" &&
+
+        [
+            "windup",
+            "charge"
+
+        ].includes(
+            stretcher.stretcherState
+        )
+
+    ) {
+
+        const playerX =
+
+            player.x +
+
+            player.width / 2;
+
+        const playerY =
+
+            player.y +
+
+            player.height / 2;
+
+        const guardX =
+
+            enemy.x +
+
+            enemy.width / 2;
+
+        const guardY =
+
+            enemy.y +
+
+            enemy.height / 2;
+
+
+        // Dirección de la embestida del camillero.
+        const laneX =
+
+            stretcher.chargeTargetX -
+
+            stretcher.x -
+
+            stretcher.width / 2;
+
+        const laneY =
+
+            stretcher.chargeTargetY -
+
+            stretcher.y -
+
+            stretcher.height / 2;
+
+        const laneDistance =
+
+            Math.hypot(
+
+                laneX,
+
+                laneY
+
+            ) || 1;
+
+
+        // Dirección perpendicular: por donde suele esquivar el jugador.
+        const perpendicularX =
+
+            -laneY /
+
+            laneDistance;
+
+        const perpendicularY =
+
+            laneX /
+
+            laneDistance;
+
+        const inputX =
+
+            Number(Boolean(keys.d)) -
+
+            Number(Boolean(keys.a));
+
+        const inputY =
+
+            Number(Boolean(keys.s)) -
+
+            Number(Boolean(keys.w));
+
+        const escapeProjection =
+
+            inputX *
+
+            perpendicularX
+
+            +
+
+            inputY *
+
+            perpendicularY;
+
+        if (
+
+            Math.abs(
+                escapeProjection
+            ) > 0.15
+
+        ) {
+
+            enemy.junctionFlankSide =
+
+                Math.sign(
+                    escapeProjection
+                );
+        }
+
+        const interceptX =
+
+            playerX +
+
+            perpendicularX *
+
+            enemy.junctionFlankSide *
+
+            82;
+
+        const interceptY =
+
+            playerY +
+
+            perpendicularY *
+
+            enemy.junctionFlankSide *
+
+            82;
+
+        const movementX =
+
+            interceptX -
+
+            guardX;
+
+        const movementY =
+
+            interceptY -
+
+            guardY;
+
+        const movementDistance =
+
+            Math.hypot(
+
+                movementX,
+
+                movementY
+
+            ) || 1;
+
+        enemy.x +=
+
+            movementX /
+
+            movementDistance *
+
+            0.72 *
+
+            deltaTime;
+
+        enemy.y +=
+
+            movementY /
+
+            movementDistance *
+
+            0.72 *
+
+            deltaTime;
+    }
+
+
+    // ============================================================
+    // PRESIONAR CUANDO EL CAMILLERO TERMINA SU CARGA
+    // ============================================================
+
+    if (
+
+        stretcher &&
+
+        stretcher.stretcherState === "recover" &&
+
+        enemy.guardState === "hold"
+
+    ) {
+
+        if (
+
+            Number.isFinite(
+                enemy.guardTimer
+            )
+
+        ) {
+
+            enemy.guardTimer = Math.min(
+
+                enemy.guardTimer,
+
+                19
+            );
+
+        } else if (
+
+            Number.isFinite(
+                enemy.stateTimer
+            )
+
+        ) {
+
+            enemy.stateTimer = Math.min(
+
+                enemy.stateTimer,
+
+                19
+            );
+        }
+    }
+
+
+    // Mantiene el escudo y el comportamiento original del celador.
+    updateSecurityGuard(
+
+        enemy,
+
+        deltaTime
+    );
+}
 function getEnemyUpdateHandler(enemy) {
+
+    // ============================================================
+    // CAMILLEROS
+    // ============================================================
+
     if (
+
         enemy.type === "stretcherBearer"
+
     ) {
-        return updateStretcherBearer;
+
+        return enemy.inpatientJunctionStretcher
+
+            ? updateInpatientJunctionStretcher
+
+            : updateStretcherBearer;
     }
 
+
+    // ============================================================
+    // CELADORES
+    // ============================================================
+
     if (
+
         enemy.type === "securityGuard"
+
     ) {
-        return updateSecurityGuard;
+
+        return enemy.inpatientJunctionGuard
+
+            ? updateInpatientJunctionGuard
+
+            : updateSecurityGuard;
     }
 
+
+    // ============================================================
+    // LEPROSO INTERCEPTOR
+    // ============================================================
+
     if (
+
         enemy.type === "leper" &&
+
         enemy.transferHunter
+
     ) {
+
         return updateTransferHunterLeper;
     }
 
+
+    // ============================================================
+    // ANESTESIÓLOGOS
+    // ============================================================
+
     if (
+
         enemy.type === "anesthesiologist"
+
     ) {
+
         if (
+
             enemy.preparationAnesthesiologist
+
         ) {
+
             return updatePreparationAnesthesiologist;
         }
 
         if (
+
             enemy.bossAssistant
+
         ) {
+
             return updateBossAnesthesiologist;
         }
 
         return isCurrentRoomType("trauma")
+
             ? updateAnesthesiologist
+
             : updateFallbackAnesthesiologist;
     }
 
+
+    // ============================================================
+    // ENFERMERAS
+    // ============================================================
+
     if (
+
         enemy.type === "aggressiveNurse"
+
     ) {
+
         if (
+
             enemy.securityEscort
+
         ) {
+
             return updateSecurityEscortNurse;
         }
 
         return enemy.surgicalPreparationNurse
+
             ? updateSurgicalPreparationNurse
+
             : updateAggressiveNurse;
     }
 
+
+    // ============================================================
+    // CIRUJANOS
+    // ============================================================
+
     if (
+
         enemy.type === "surgeon"
+
     ) {
+
+        if (
+
+            enemy.corridorSupport
+
+        ) {
+
+            return updateTransferCorridorSurgeon;
+        }
+
         return enemy.surgicalPreparationSurgeon
+
             ? updateSurgicalPreparationSurgeon
+
             : updateSurgeon;
     }
+
+
+    // ============================================================
+    // RESTO DE LOS ENEMIGOS
+    // ============================================================
 
     return ENEMY_UPDATE_HANDLERS[enemy.type] || null;
 }
