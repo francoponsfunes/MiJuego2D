@@ -384,12 +384,6 @@ function openElevatorDialog() {
 
     return true;
 }
-
-function closeElevatorDialog() {
-    elevatorDialogOpen =
-        false;
-}
-
 function confirmElevatorAscent() {
     if (
         !elevatorDialogOpen ||
@@ -399,16 +393,16 @@ function confirmElevatorAscent() {
         return false;
     }
 
+    if (!levelConfigs[currentLevel + 1]) {
+        return false;
+    }
+
     playerAccessCards--;
 
-    elevatorDialogOpen =
-        false;
+    elevatorDialogOpen = false;
 
-    showVictory();
-
-    return true;
+    return advanceToNextLevel();
 }
-
 function handleElevatorKeydown(
     event
 ) {

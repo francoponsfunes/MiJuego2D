@@ -13,7 +13,18 @@ const levelConfigs = {
         startRoom: 1,
         bossRoom: 5,
         pharmacyRoom: 10,
-        hasPharmacy: true
+        hasPharmacy: true,
+        bossImplemented: true,
+        bossKeysRequired: 3
+    },
+
+    2: {
+        startRoom: 11,
+        bossRoom: 23,
+        pharmacyRoom: null,
+        hasPharmacy: false,
+        bossImplemented: false,
+        bossKeysRequired: 3
     }
 };
 
@@ -149,6 +160,190 @@ const ROOM_DEFINITIONS = [
         startsCleared: true
     }
 ];
+const LEVEL_2_ROOM_DEFINITIONS = [
+    {
+        id: 11,
+        type: "start",
+        name: "Ascensor - Piso 2",
+        enemyCount: 0,
+        color: "#242a31",
+        mapX: 0,
+        mapY: 0,
+        up: 12,
+        startsCleared: true
+    },
+
+    {
+        id: 12,
+        type: "transferIntroduction",
+        name: "Sector de traslados",
+        enemyCount: 0,
+        plannedEnemyCount: 2,
+        color: "#27313a",
+        mapX: 0,
+        mapY: -1,
+        up: 15,
+        down: 11,
+        left: 13,
+        right: 14
+    },
+
+    {
+        id: 13,
+        type: "securityIntroduction",
+        name: "Puesto del celador",
+        enemyCount: 0,
+        plannedEnemyCount: 2,
+        keyReward: true,
+        color: "#2b3037",
+        mapX: -1,
+        mapY: -1,
+        up: 16,
+        right: 12
+    },
+
+    {
+        id: 14,
+        type: "transferCorridor",
+        name: "Pasillo de traslados",
+        enemyCount: 0,
+        plannedEnemyCount: 3,
+        color: "#293540",
+        mapX: 1,
+        mapY: -1,
+        up: 18,
+        left: 12,
+        right: 17
+    },
+
+    {
+        id: 15,
+        type: "inpatientJunction",
+        name: "Cruce de internación",
+        enemyCount: 0,
+        plannedEnemyCount: 3,
+        color: "#30343a",
+        mapX: 0,
+        mapY: -2,
+        up: 22,
+        down: 12,
+        left: 16,
+        right: 18
+    },
+
+    {
+        id: 16,
+        type: "securityWard",
+        name: "Guardia de internación",
+        enemyCount: 0,
+        plannedEnemyCount: 3,
+        keyReward: true,
+        color: "#30313d",
+        mapX: -1,
+        mapY: -2,
+        down: 13,
+        left: 19,
+        right: 15
+    },
+
+    {
+        id: 17,
+        type: "transferStorage",
+        name: "Depósito de traslados",
+        enemyCount: 0,
+        plannedEnemyCount: 4,
+        optionalRoom: true,
+        color: "#34322d",
+        mapX: 2,
+        mapY: -1,
+        left: 14
+    },
+
+    {
+        id: 18,
+        type: "inpatientWard",
+        name: "Sala de internación",
+        enemyCount: 0,
+        plannedEnemyCount: 3,
+        keyReward: true,
+        color: "#28373b",
+        mapX: 1,
+        mapY: -2,
+        up: 21,
+        down: 14,
+        left: 15
+    },
+
+    {
+        id: 19,
+        type: "optionalChallenge",
+        name: "Ala restringida",
+        enemyCount: 0,
+        plannedEnemyCount: 4,
+        optionalRoom: true,
+        color: "#382f34",
+        mapX: -2,
+        mapY: -2,
+        left: 20,
+        right: 16
+    },
+
+    {
+        id: 20,
+        type: "supplyRoom",
+        name: "Sala de suministros",
+        enemyCount: 0,
+        color: "#29382f",
+        mapX: -3,
+        mapY: -2,
+        right: 19,
+        startsCleared: true
+    },
+
+    {
+        id: 21,
+        type: "advancedWard",
+        name: "Internación avanzada",
+        enemyCount: 0,
+        plannedEnemyCount: 4,
+        keyReward: true,
+        color: "#363139",
+        mapX: 1,
+        mapY: -3,
+        down: 18,
+        left: 22
+    },
+
+    {
+        id: 22,
+        type: "bossAntechamber",
+        name: "Antesala de traslados",
+        enemyCount: 0,
+        color: "#302a2d",
+        mapX: 0,
+        mapY: -3,
+        up: 23,
+        down: 15,
+        right: 21,
+        startsCleared: true
+    },
+
+    {
+        id: 23,
+        type: "boss",
+        name: "Jefatura de traslados",
+        enemyCount: 0,
+        color: "#392326",
+        mapX: 0,
+        mapY: -4,
+        down: 22
+    }
+];
+
+const LEVEL_ROOM_DEFINITIONS = {
+    1: ROOM_DEFINITIONS,
+    2: LEVEL_2_ROOM_DEFINITIONS
+};
 
 function createRoomDefinition(config) {
     const room = {
@@ -177,12 +372,23 @@ function createRoomDefinition(config) {
     return room;
 }
 
-const rooms = Object.fromEntries(
-    ROOM_DEFINITIONS.map((config) => [
-        config.id,
-        createRoomDefinition(config)
-    ])
-);
+function createRoomsForLevel(level) {
+    const definitions =
+        LEVEL_ROOM_DEFINITIONS[level];
+
+    if (!definitions) {
+        return {};
+    }
+
+    return Object.fromEntries(
+        definitions.map((config) => [
+            config.id,
+            createRoomDefinition(config)
+        ])
+    );
+}
+
+let rooms = createRoomsForLevel(currentLevel);
 
 function getCurrentLevelConfig() {
     return levelConfigs[
@@ -247,18 +453,16 @@ function isRoomEnabled(roomId) {
     );
 }
 
-function canEnterRoom(
-    fromRoomId,
-    targetRoomId
-) {
+function canEnterRoom(fromRoomId, targetRoomId) {
     const targetRoom =
         rooms[targetRoomId];
 
+    const levelConfig =
+        getCurrentLevelConfig();
+
     if (
         !targetRoom ||
-        !isRoomEnabled(
-            targetRoomId
-        )
+        !isRoomEnabled(targetRoomId)
     ) {
         return false;
     }
@@ -272,48 +476,22 @@ function canEnterRoom(
 
     if (
         targetRoom.type === "boss" &&
-        !targetRoom.cleared &&
-        playerKeys < 3 &&
-        !bossDoorUnlocked
+        !targetRoom.cleared
     ) {
-        return false;
+        if (levelConfig.bossImplemented === false) {
+            return false;
+        }
+
+        if (
+            playerKeys < levelConfig.bossKeysRequired &&
+            !bossDoorUnlocked
+        ) {
+            return false;
+        }
     }
 
     return true;
 }
-
-const doors = {
-    top: false,
-    bottom: false,
-    left: false,
-    right: false
-};
-
-const doorDirections = {
-    top: "up",
-    bottom: "down",
-    left: "left",
-    right: "right"
-};
-
-function canUseDoor(direction) {
-    const room =
-        rooms[currentRoom];
-
-    if (
-        !room ||
-        !room.cleared ||
-        room[direction] === null
-    ) {
-        return false;
-    }
-
-    return canEnterRoom(
-        currentRoom,
-        room[direction]
-    );
-}
-
 function updateDoors() {
     Object.entries(
         doorDirections
@@ -1305,25 +1483,22 @@ function checkRoomChange() {
         );
     }
 }
-
 function drawRoomInfo() {
-    ctx.fillStyle =
-        "white";
+    ctx.fillStyle = "white";
 
-    ctx.font =
-        "18px Arial";
+    ctx.font = "18px Arial";
 
     ctx.fillText(
+        "Piso " +
+        currentLevel +
+        " · " +
         rooms[currentRoom].name,
 
-        canvas.width -
-            245,
+        20,
 
-        canvas.height -
-            24
+        canvas.height - 24
     );
 }
-
 function getMinimapLayout(
     enabledRooms
 ) {
@@ -1723,40 +1898,111 @@ function drawMinimap() {
     ctx.textBaseline =
         "alphabetic";
 }
-
 function resetRoomsForNewRun() {
-    const startRoom =
-        getCurrentLevelConfig()
-            .startRoom;
+    currentLevel = 1;
 
-    Object.values(
-        rooms
-    ).forEach((room) => {
+    rooms = createRoomsForLevel(currentLevel);
+
+    const startRoom =
+        getCurrentLevelConfig().startRoom;
+
+    Object.values(rooms).forEach((room) => {
         room.cleared =
             room.startsCleared;
 
         room.visited =
-            room.id ===
-            startRoom;
+            room.id === startRoom;
 
-        if (
-            room.type === "pharmacy"
-        ) {
-            room.rewardCollected =
-                false;
+        if (room.type === "pharmacy") {
+            room.rewardCollected = false;
         }
     });
 
-    currentRoom =
-        startRoom;
+    currentRoom = startRoom;
 
-    changingRoom =
-        false;
+    changingRoom = false;
 
-    pharmacyUnlockNoticeUntil =
-        0;
+    pharmacyUnlockNoticeUntil = 0;
 }
 
+function advanceToNextLevel() {
+    const nextLevel =
+        currentLevel + 1;
+
+    const nextLevelConfig =
+        levelConfigs[nextLevel];
+
+    if (!nextLevelConfig) {
+        return false;
+    }
+
+    [
+        enemies,
+        bullets,
+        enemyProjectiles,
+        bossProjectiles,
+        droppedKeys,
+        droppedHalfHearts,
+        droppedBossItems,
+        droppedBrightHearts
+    ].forEach((collection) => {
+        collection.length = 0;
+    });
+
+    currentLevel =
+        nextLevel;
+
+    rooms =
+        createRoomsForLevel(currentLevel);
+
+    currentRoom =
+        nextLevelConfig.startRoom;
+
+    playerKeys = 0;
+
+    bossDoorUnlocked = false;
+
+    changingRoom = false;
+
+    pharmacyUnlockNoticeUntil = 0;
+
+    hospitalOrderUntil = 0;
+
+    playerKnockbackX = 0;
+
+    playerKnockbackY = 0;
+
+    movementDisabledUntil = 0;
+
+    player.x =
+        canvas.width / 2 -
+        player.width / 2;
+
+    player.y =
+        canvas.height / 2 -
+        player.height / 2;
+
+    Object.assign(boss, {
+        active: false,
+        defeated: false,
+        touchingPlayer: false,
+        health: boss.maxHealth,
+        phase: 1,
+        spawned75: false,
+        spawned50: false,
+        spawned25: false,
+        assistantCommandTimer: 90,
+        assistantTurn: 0,
+        anesthesiaImmunityUntil: 0,
+        attackSequence: 0,
+        dashDuration: 0,
+        enraged: false
+    });
+
+    rooms[currentRoom].visited = true;
+
+    return true;
+}
 function checkRoomClear() {
     const room =
         rooms[currentRoom];
