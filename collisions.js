@@ -211,20 +211,24 @@ function checkBulletCollisions() {
         }
     }
 }
-
 function isEnemyMovementForced(enemy) {
     return (
+        (
+            enemy.type === "stretcherBearer" &&
+            enemy.stretcherState === "charge"
+        ) ||
+
         (
             enemy.type === "traumatologist" &&
             enemy.traumaState === "charge"
         ) ||
+
         (
             enemy.type === "anesthesiologist" &&
             enemy.anesthesiologistState === "dash"
         )
     );
 }
-
 function resolveEnemyCollisions() {
     for (
         let firstIndex = 0;
@@ -406,18 +410,26 @@ function isCommittedEnemyAttack(enemy) {
 
     return false;
 }
-
 function applyEnemyKnockback(enemy, bullet) {
+    const committedStretcherAttack =
+        enemy.type === "stretcherBearer" &&
+
+        [
+            "windup",
+            "charge"
+        ].includes(
+            enemy.stretcherState
+        );
+
     if (
-        isCommittedEnemyAttack(enemy)
+        isCommittedEnemyAttack(enemy) ||
+        committedStretcherAttack
     ) {
         return;
     }
 
     const direction =
-        PROJECTILE_DIRECTIONS[
-            bullet.direction
-        ];
+        PROJECTILE_DIRECTIONS[bullet.direction];
 
     if (!direction) {
         return;
@@ -429,7 +441,6 @@ function applyEnemyKnockback(enemy, bullet) {
     enemy.knockbackY =
         direction.y * 8;
 }
-
 function handleAnesthesiologistContact(
     enemy,
     colliding

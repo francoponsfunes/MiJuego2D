@@ -186,7 +186,7 @@ const LEVEL_2_ROOM_DEFINITIONS = [
         id: 12,
         type: "transferIntroduction",
         name: "Sector de traslados",
-        enemyCount: 0,
+        enemyCount: 2,
         plannedEnemyCount: 2,
         color: "#27313a",
         mapX: 0,
@@ -1049,6 +1049,95 @@ function drawSurgicalWarnings() {
 // DIBUJO DE LA SALA.
 // ============================================================================
 
+function drawStretcherBearerWarnings() {
+    enemies.forEach((enemy) => {
+        if (
+            enemy.type !== "stretcherBearer" ||
+
+            ![
+                "windup",
+                "charge"
+            ].includes(
+                enemy.stretcherState
+            )
+        ) {
+            return;
+        }
+
+        const centerX =
+            enemy.x +
+            enemy.width / 2;
+
+        const centerY =
+            enemy.y +
+            enemy.height / 2;
+
+        const charging =
+            enemy.stretcherState === "charge";
+
+        ctx.strokeStyle = charging
+            ? "rgba(255, 170, 80, 0.98)"
+            : "rgba(255, 215, 145, 0.92)";
+
+        ctx.lineWidth =
+            charging ? 5 : 3;
+
+        ctx.strokeRect(
+            enemy.x - 5,
+
+            enemy.y - 5,
+
+            enemy.width + 10,
+
+            enemy.height + 10
+        );
+
+        if (charging) {
+            return;
+        }
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            centerX,
+            centerY
+        );
+
+        ctx.lineTo(
+            enemy.chargeTargetX,
+            enemy.chargeTargetY
+        );
+
+        ctx.stroke();
+
+        const warningProgress =
+            1 -
+            enemy.stateTimer /
+            enemy.windupDuration;
+
+        ctx.beginPath();
+
+        ctx.arc(
+            enemy.chargeTargetX,
+
+            enemy.chargeTargetY,
+
+            Math.max(
+                8,
+
+                24 *
+                (1 - warningProgress)
+            ),
+
+            0,
+
+            Math.PI * 2
+        );
+
+        ctx.stroke();
+    });
+}
+
 function drawRoom() {
     ctx.fillStyle =
         rooms[currentRoom].color;
@@ -1077,8 +1166,11 @@ function drawRoom() {
     ) {
         drawSurgicalWarnings();
     }
-}
 
+    if (currentLevel === 2) {
+        drawStretcherBearerWarnings();
+    }
+}
 // ============================================================================
 // JEFE Y GENERACIÓN DE ENEMIGOS.
 // ============================================================================
@@ -1118,7 +1210,6 @@ function resetBossForFight() {
 
     bossProjectiles.length = 0;
 }
-
 function spawnRoomEnemies(room) {
     if (
         room.type === "anesthesiaPreparation"
@@ -1128,13 +1219,16 @@ function spawnRoomEnemies(room) {
         room.type === "surgicalPreparation"
     ) {
         spawnSurgicalPreparationEnemies();
+    } else if (
+        room.type === "transferIntroduction"
+    ) {
+        spawnTransferIntroductionEnemies();
     } else {
         spawnEnemies(
             room.enemyCount
         );
     }
 }
-
 // ============================================================================
 // CAMBIO DE SALA.
 // ============================================================================

@@ -2821,8 +2821,429 @@ function updateFallbackAnesthesiologist(enemy, deltaTime) {
         enemy.y -= movement;
     }
 }
+function createStretcherBearerConfig() {
+    return {
+        type: "stretcherBearer",
 
+        x:
+            canvas.width / 2 -
+            24,
+
+        y: 105,
+
+        width: 48,
+        height: 52,
+
+        speed: 2.15,
+
+        health: 7,
+        maxHealth: 7,
+
+        color: "#d89962",
+
+        knockbackResistance: 2.2,
+
+        stretcherState: "reposition",
+
+        stateTimer: 38,
+
+        repositionDuration: 48,
+
+        windupDuration: 25,
+
+        recoverDuration: 34,
+
+        preferredDistance: 225,
+
+        orbitDirection: 1,
+
+        chargeSpeed: 7.4,
+
+        chargeX: 0,
+        chargeY: 0,
+
+        chargeTargetX:
+            player.x +
+            player.width / 2,
+
+        chargeTargetY:
+            player.y +
+            player.height / 2,
+
+        chargeHit: false,
+
+        chargesCompleted: 0
+    };
+}
+
+function spawnTransferIntroductionEnemies() {
+    enemies.push(
+        createEnemy(
+            createStretcherBearerConfig()
+        )
+    );
+
+    const leper =
+        createLeperConfig(0);
+
+    leper.x =
+        canvas.width - 155;
+
+    leper.y = 180;
+
+    leper.flankSide = -1;
+
+    leper.leperTimer = 95;
+
+    enemies.push(
+        createEnemy(leper)
+    );
+}
+
+function updateStretcherBearer(enemy, deltaTime) {
+    const enemyX =
+        enemy.x +
+        enemy.width / 2;
+
+    const enemyY =
+        enemy.y +
+        enemy.height / 2;
+
+    const playerX =
+        player.x +
+        player.width / 2;
+
+    const playerY =
+        player.y +
+        player.height / 2;
+
+    const distanceX =
+        playerX - enemyX;
+
+    const distanceY =
+        playerY - enemyY;
+
+    const distance =
+        Math.hypot(
+            distanceX,
+            distanceY
+        ) || 1;
+
+    const directionX =
+        distanceX / distance;
+
+    const directionY =
+        distanceY / distance;
+
+    // ========================================================================
+    // REPOSICIONAMIENTO.
+    // ========================================================================
+
+    if (enemy.stretcherState === "reposition") {
+        enemy.stateTimer -= deltaTime;
+
+        const orbitX =
+            -directionY *
+            enemy.orbitDirection;
+
+        const orbitY =
+            directionX *
+            enemy.orbitDirection;
+
+        const distanceCorrection = Math.max(
+            -1,
+
+            Math.min(
+                1,
+
+                (
+                    distance -
+                    enemy.preferredDistance
+                ) /
+                enemy.preferredDistance
+            )
+        );
+
+        let movementX =
+            orbitX * 0.72 +
+            directionX *
+            distanceCorrection *
+            1.4;
+
+        let movementY =
+            orbitY * 0.72 +
+            directionY *
+            distanceCorrection *
+            1.4;
+
+        if (distance > 335) {
+            movementX +=
+                directionX * 0.9;
+
+            movementY +=
+                directionY * 0.9;
+        }
+
+        const movementDistance =
+            Math.hypot(
+                movementX,
+                movementY
+            ) || 1;
+
+        enemy.x +=
+            movementX /
+            movementDistance *
+            enemy.speed *
+            deltaTime;
+
+        enemy.y +=
+            movementY /
+            movementDistance *
+            enemy.speed *
+            deltaTime;
+
+        if (
+            enemy.stateTimer <= 0 &&
+            distance > 75 &&
+            distance < 470
+        ) {
+            enemy.stretcherState =
+                "windup";
+
+            enemy.stateTimer =
+                enemy.windupDuration;
+
+            enemy.chargeHit =
+                false;
+
+            enemy.chargeTargetX =
+                playerX;
+
+            enemy.chargeTargetY =
+                playerY;
+        } else if (
+            enemy.stateTimer <= 0
+        ) {
+            enemy.stateTimer = 15;
+        }
+
+        return;
+    }
+
+    // ========================================================================
+    // PREPARACIÓN DE LA CARGA.
+    // ========================================================================
+
+    if (enemy.stretcherState === "windup") {
+        if (enemy.stateTimer > 8) {
+            const inputX =
+                Number(Boolean(keys.d)) -
+                Number(Boolean(keys.a));
+
+            const inputY =
+                Number(Boolean(keys.s)) -
+                Number(Boolean(keys.w));
+
+            const inputDistance =
+                Math.hypot(
+                    inputX,
+                    inputY
+                ) || 1;
+
+            const travelFrames =
+                distance /
+                enemy.chargeSpeed;
+
+            const predictionDistance = Math.min(
+                105,
+
+                travelFrames *
+                player.speed *
+                PLAYER_SPEED_MULTIPLIER *
+                0.82
+            );
+
+            enemy.chargeTargetX = Math.max(
+                42,
+
+                Math.min(
+                    canvas.width - 42,
+
+                    playerX +
+                    inputX /
+                    inputDistance *
+                    predictionDistance
+                )
+            );
+
+            enemy.chargeTargetY = Math.max(
+                42,
+
+                Math.min(
+                    canvas.height - 42,
+
+                    playerY +
+                    inputY /
+                    inputDistance *
+                    predictionDistance
+                )
+            );
+        }
+
+        enemy.stateTimer -= deltaTime;
+
+        if (enemy.stateTimer <= 0) {
+            const attackX =
+                enemy.chargeTargetX -
+                enemyX;
+
+            const attackY =
+                enemy.chargeTargetY -
+                enemyY;
+
+            const attackDistance =
+                Math.hypot(
+                    attackX,
+                    attackY
+                ) || 1;
+
+            enemy.chargeX =
+                attackX /
+                attackDistance;
+
+            enemy.chargeY =
+                attackY /
+                attackDistance;
+
+            enemy.stretcherState =
+                "charge";
+
+            enemy.stateTimer = Math.max(
+                24,
+
+                Math.min(
+                    82,
+
+                    attackDistance /
+                    enemy.chargeSpeed +
+                    15
+                )
+            );
+        }
+
+        return;
+    }
+
+    // ========================================================================
+    // CARGA.
+    // ========================================================================
+
+    if (enemy.stretcherState === "charge") {
+        enemy.stateTimer -= deltaTime;
+
+        enemy.x +=
+            enemy.chargeX *
+            enemy.chargeSpeed *
+            deltaTime;
+
+        enemy.y +=
+            enemy.chargeY *
+            enemy.chargeSpeed *
+            deltaTime;
+
+        if (
+            areEntitiesColliding(
+                player,
+                enemy
+            ) &&
+            !enemy.chargeHit
+        ) {
+            enemy.chargeHit =
+                true;
+
+            enemy.touchingPlayer =
+                true;
+
+            damagePlayerFromEntity(
+                1,
+                enemy,
+                11
+            );
+
+            enemy.stretcherState =
+                "recover";
+
+            enemy.stateTimer =
+                enemy.recoverDuration;
+
+            enemy.chargesCompleted++;
+
+            return;
+        }
+
+        const hitWall =
+            enemy.x <= 20 ||
+
+            enemy.y <= 20 ||
+
+            enemy.x + enemy.width >=
+                canvas.width - 20 ||
+
+            enemy.y + enemy.height >=
+                canvas.height - 20;
+
+        if (
+            enemy.stateTimer <= 0 ||
+            hitWall
+        ) {
+            enemy.stretcherState =
+                "recover";
+
+            enemy.stateTimer =
+                enemy.recoverDuration;
+
+            enemy.chargesCompleted++;
+        }
+
+        return;
+    }
+
+    // ========================================================================
+    // RECUPERACIÓN.
+    // ========================================================================
+
+    if (enemy.stretcherState === "recover") {
+        enemy.stateTimer -= deltaTime;
+
+        enemy.x -=
+            directionX *
+            0.55 *
+            deltaTime;
+
+        enemy.y -=
+            directionY *
+            0.55 *
+            deltaTime;
+
+        if (enemy.stateTimer <= 0) {
+            enemy.stretcherState =
+                "reposition";
+
+            enemy.stateTimer =
+                enemy.repositionDuration +
+                Math.random() * 16;
+
+            enemy.orbitDirection *= -1;
+
+            enemy.chargeHit = false;
+        }
+    }
+}
 function getEnemyUpdateHandler(enemy) {
+    if (enemy.type === "stretcherBearer") {
+        return updateStretcherBearer;
+    }
+
     if (enemy.type === "anesthesiologist") {
         if (enemy.preparationAnesthesiologist) {
             return updatePreparationAnesthesiologist;
@@ -2849,9 +3270,11 @@ function getEnemyUpdateHandler(enemy) {
             : updateSurgeon;
     }
 
-    return ENEMY_UPDATE_HANDLERS[enemy.type] || null;
+    return (
+        ENEMY_UPDATE_HANDLERS[enemy.type] ||
+        null
+    );
 }
-
 function updateEnemyKnockbackAndBounds(enemy, deltaTime) {
     enemy.x += enemy.knockbackX * deltaTime;
     enemy.y += enemy.knockbackY * deltaTime;
