@@ -84,7 +84,6 @@ function separateEntities(
     first[axis] -= push * direction;
     second[axis] += push * direction;
 }
-
 function dropDefeatedEnemyRewards(enemy) {
     if (
         isCurrentRoomType("doctor") &&
@@ -97,6 +96,20 @@ function dropDefeatedEnemyRewards(enemy) {
 
         dropHalfHeart(
             enemy.x + 35,
+            enemy.y + 10
+        );
+
+        return;
+    }
+
+    if (
+        isCurrentRoomType(
+            "securityIntroduction"
+        ) &&
+        enemy.type === "securityGuard"
+    ) {
+        dropKey(
+            enemy.x + 9,
             enemy.y + 10
         );
 
@@ -125,29 +138,94 @@ function dropDefeatedEnemyRewards(enemy) {
         );
     }
 }
+function isSecurityGuardBlockingBullet(
+    enemy,
+    bullet
+) {
+    if (
+        enemy.type !== "securityGuard" ||
+        enemy.shieldCharges <= 0 ||
+        ![
+            "hold",
+            "windup"
+        ].includes(enemy.guardState)
+    ) {
+        return false;
+    }
 
+    const projectileDirection =
+        PROJECTILE_DIRECTIONS[
+            bullet.direction
+        ];
+
+    const directionX =
+        Number.isFinite(bullet.vx)
+            ? bullet.vx
+            : projectileDirection
+                ? projectileDirection.x
+                : 0;
+
+    const directionY =
+        Number.isFinite(bullet.vy)
+            ? bullet.vy
+            : projectileDirection
+                ? projectileDirection.y
+                : 0;
+
+    const directionLength =
+        Math.hypot(
+            directionX,
+            directionY
+        );
+
+    if (
+        directionLength === 0
+    ) {
+        return false;
+    }
+
+    const frontalImpact =
+        -directionX /
+            directionLength *
+            enemy.facingX +
+        -directionY /
+            directionLength *
+            enemy.facingY;
+
+    return frontalImpact >= 0.38;
+}
 function checkBulletCollisions() {
     for (
-        let bulletIndex = bullets.length - 1;
+        let bulletIndex =
+            bullets.length - 1;
+
         bulletIndex >= 0;
+
         bulletIndex--
     ) {
-        const bullet = bullets[bulletIndex];
+        const bullet =
+            bullets[bulletIndex];
 
         const isBoomerang =
             bullet.type === "boomerang";
 
         for (
-            let enemyIndex = enemies.length - 1;
+            let enemyIndex =
+                enemies.length - 1;
+
             enemyIndex >= 0;
+
             enemyIndex--
         ) {
-            const enemy = enemies[enemyIndex];
+            const enemy =
+                enemies[enemyIndex];
 
             if (
                 (
                     isBoomerang &&
-                    bullet.hitEnemies.has(enemy)
+                    bullet.hitEnemies.has(
+                        enemy
+                    )
                 ) ||
                 !areEntitiesColliding(
                     bullet,
@@ -157,13 +235,54 @@ function checkBulletCollisions() {
                 continue;
             }
 
-            enemy.health -=
-                isBoomerang
-                    ? bullet.damage
-                    : 1;
+            if (
+                isSecurityGuardBlockingBullet(
+                    enemy,
+                    bullet
+                )
+            ) {
+                enemy.shieldCharges--;
+
+                enemy.shieldBlocks++;
+
+                enemy.shieldFlashUntil =
+                    performance.now() +
+                    150;
+
+                if (
+                    enemy.shieldCharges <= 0
+                ) {
+                    enemy.guardState =
+                        "exposed";
+
+                    enemy.stateTimer =
+                        enemy.exposedDuration;
+                }
+
+                if (isBoomerang) {
+                    bullet.hitEnemies.add(
+                        enemy
+                    );
+
+                    continue;
+                }
+
+                bullets.splice(
+                    bulletIndex,
+                    1
+                );
+
+                break;
+            }
+
+            enemy.health -= isBoomerang
+                ? bullet.damage
+                : 1;
 
             if (isBoomerang) {
-                bullet.hitEnemies.add(enemy);
+                bullet.hitEnemies.add(
+                    enemy
+                );
             }
 
             if (
@@ -171,9 +290,12 @@ function checkBulletCollisions() {
                 enemy.health <= 8 &&
                 !enemy.nursesSpawned
             ) {
-                enemy.nursesSpawned = true;
+                enemy.nursesSpawned =
+                    true;
 
-                spawnNurses(enemy);
+                spawnNurses(
+                    enemy
+                );
             }
 
             applyEnemyKnockback(
@@ -188,20 +310,27 @@ function checkBulletCollisions() {
                 );
             }
 
-            if (enemy.health <= 0) {
+            if (
+                enemy.health <= 0
+            ) {
                 enemies.splice(
                     enemyIndex,
                     1
                 );
 
-                dropDefeatedEnemyRewards(enemy);
+                dropDefeatedEnemyRewards(
+                    enemy
+                );
 
                 if (
-                    !isCurrentRoomType("boss") &&
+                    !isCurrentRoomType(
+                        "boss"
+                    ) &&
                     enemies.length === 0 &&
                     !rooms[currentRoom].cleared
                 ) {
-                    rooms[currentRoom].cleared = true;
+                    rooms[currentRoom].cleared =
+                        true;
                 }
             }
 
@@ -214,15 +343,22 @@ function checkBulletCollisions() {
 function isEnemyMovementForced(enemy) {
     return (
         (
+            enemy.type === "securityGuard" &&
+            enemy.guardState === "bash"
+        ) ||
+        (
+            enemy.type === "aggressiveNurse" &&
+            enemy.securityEscort &&
+            enemy.nurseState === "rush"
+        ) ||
+        (
             enemy.type === "stretcherBearer" &&
             enemy.stretcherState === "charge"
         ) ||
-
         (
             enemy.type === "traumatologist" &&
             enemy.traumaState === "charge"
         ) ||
-
         (
             enemy.type === "anesthesiologist" &&
             enemy.anesthesiologistState === "dash"
@@ -410,10 +546,12 @@ function isCommittedEnemyAttack(enemy) {
 
     return false;
 }
-function applyEnemyKnockback(enemy, bullet) {
+function applyEnemyKnockback(
+    enemy,
+    bullet
+) {
     const committedStretcherAttack =
         enemy.type === "stretcherBearer" &&
-
         [
             "windup",
             "charge"
@@ -421,15 +559,39 @@ function applyEnemyKnockback(enemy, bullet) {
             enemy.stretcherState
         );
 
+    const committedSecurityAttack =
+        (
+            enemy.type === "securityGuard" &&
+            [
+                "windup",
+                "bash"
+            ].includes(
+                enemy.guardState
+            )
+        ) ||
+        (
+            enemy.type === "aggressiveNurse" &&
+            enemy.securityEscort &&
+            [
+                "windup",
+                "rush"
+            ].includes(
+                enemy.nurseState
+            )
+        );
+
     if (
         isCommittedEnemyAttack(enemy) ||
-        committedStretcherAttack
+        committedStretcherAttack ||
+        committedSecurityAttack
     ) {
         return;
     }
 
     const direction =
-        PROJECTILE_DIRECTIONS[bullet.direction];
+        PROJECTILE_DIRECTIONS[
+            bullet.direction
+        ];
 
     if (!direction) {
         return;

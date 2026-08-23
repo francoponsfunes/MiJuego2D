@@ -201,8 +201,8 @@ const LEVEL_2_ROOM_DEFINITIONS = [
         id: 13,
         type: "securityIntroduction",
         name: "Puesto del celador",
-        enemyCount: 0,
-        plannedEnemyCount: 2,
+        enemyCount: 3,
+        plannedEnemyCount: 3,
         keyReward: true,
         color: "#2b3037",
         mapX: -1,
@@ -1137,7 +1137,131 @@ function drawStretcherBearerWarnings() {
         ctx.stroke();
     });
 }
+function drawSecurityGuardWarnings() {
+    enemies.forEach((enemy) => {
+        if (
+            enemy.type !== "securityGuard"
+        ) {
+            return;
+        }
 
+        const centerX =
+            enemy.x + enemy.width / 2;
+
+        const centerY =
+            enemy.y + enemy.height / 2;
+
+        const shieldActive =
+            enemy.shieldCharges > 0 &&
+            [
+                "hold",
+                "windup"
+            ].includes(enemy.guardState);
+
+        ctx.save();
+
+        if (shieldActive) {
+            const shieldAngle =
+                Math.atan2(
+                    enemy.facingY,
+                    enemy.facingX
+                );
+
+            const hitFlash =
+                performance.now() <
+                enemy.shieldFlashUntil;
+
+            ctx.beginPath();
+
+            ctx.arc(
+                centerX,
+                centerY,
+                Math.max(
+                    enemy.width,
+                    enemy.height
+                ) / 2 + 9,
+                shieldAngle - 0.88,
+                shieldAngle + 0.88
+            );
+
+            ctx.strokeStyle = hitFlash
+                ? "rgba(255, 255, 255, 0.98)"
+                : enemy.shieldCharges === 1
+                    ? "rgba(255, 176, 92, 0.95)"
+                    : "rgba(129, 198, 255, 0.95)";
+
+            ctx.lineWidth = hitFlash
+                ? 9
+                : 7;
+
+            ctx.stroke();
+        }
+
+        if (
+            enemy.guardState === "windup"
+        ) {
+            ctx.strokeStyle =
+                "rgba(255, 219, 120, 0.95)";
+
+            ctx.lineWidth = 3;
+
+            ctx.strokeRect(
+                enemy.x - 6,
+                enemy.y - 6,
+                enemy.width + 12,
+                enemy.height + 12
+            );
+
+            ctx.beginPath();
+
+            ctx.moveTo(
+                centerX,
+                centerY
+            );
+
+            ctx.lineTo(
+                enemy.bashTargetX,
+                enemy.bashTargetY
+            );
+
+            ctx.stroke();
+        }
+
+        if (
+            enemy.guardState === "bash"
+        ) {
+            ctx.strokeStyle =
+                "rgba(255, 160, 94, 0.98)";
+
+            ctx.lineWidth = 5;
+
+            ctx.strokeRect(
+                enemy.x - 5,
+                enemy.y - 5,
+                enemy.width + 10,
+                enemy.height + 10
+            );
+        }
+
+        if (
+            enemy.guardState === "exposed"
+        ) {
+            ctx.strokeStyle =
+                "rgba(255, 238, 150, 0.9)";
+
+            ctx.lineWidth = 2;
+
+            ctx.strokeRect(
+                enemy.x - 7,
+                enemy.y - 7,
+                enemy.width + 14,
+                enemy.height + 14
+            );
+        }
+
+        ctx.restore();
+    });
+}
 function drawRoom() {
     ctx.fillStyle =
         rooms[currentRoom].color;
@@ -1157,18 +1281,28 @@ function drawRoom() {
         isCurrentRoomType("junction")
     ) {
         drawJunctionWarnings();
+
     } else if (
-        isCurrentRoomType("anesthesiaPreparation")
+        isCurrentRoomType(
+            "anesthesiaPreparation"
+        )
     ) {
         drawAnesthesiaWarnings();
+
     } else if (
-        isCurrentRoomType("surgicalPreparation")
+        isCurrentRoomType(
+            "surgicalPreparation"
+        )
     ) {
         drawSurgicalWarnings();
     }
 
-    if (currentLevel === 2) {
+    if (
+        currentLevel === 2
+    ) {
         drawStretcherBearerWarnings();
+
+        drawSecurityGuardWarnings();
     }
 }
 // ============================================================================
@@ -1215,14 +1349,22 @@ function spawnRoomEnemies(room) {
         room.type === "anesthesiaPreparation"
     ) {
         spawnAnesthesiaPreparationEnemies();
+
     } else if (
         room.type === "surgicalPreparation"
     ) {
         spawnSurgicalPreparationEnemies();
+
     } else if (
         room.type === "transferIntroduction"
     ) {
         spawnTransferIntroductionEnemies();
+
+    } else if (
+        room.type === "securityIntroduction"
+    ) {
+        spawnSecurityIntroductionEnemies();
+
     } else {
         spawnEnemies(
             room.enemyCount

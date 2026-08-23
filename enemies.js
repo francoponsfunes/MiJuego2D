@@ -3490,9 +3490,819 @@ function updateTransferHunterLeper(enemy, deltaTime) {
         }
     }
 }
+function createSecurityGuardConfig() {
+    return {
+        type: "securityGuard",
+        x: canvas.width / 2 - 26,
+        y: 165,
+        width: 52,
+        height: 54,
+        health: 8,
+        maxHealth: 8,
+        speed: 1.82,
+        color: "#798ca8",
+        knockbackResistance: 3.1,
+        guardState: "hold",
+        stateTimer: 32,
+        attackCooldown: 46,
+        windupDuration: 16,
+        bashDuration: 18,
+        bashSpeed: 6.45,
+        recoverDuration: 27,
+        exposedDuration: 78,
+        shieldCharges: 3,
+        maxShieldCharges: 3,
+        shieldBlocks: 0,
+        shieldFlashUntil: 0,
+        facingX: 0,
+        facingY: 1,
+        bashX: 0,
+        bashY: 0,
+        bashTargetX: player.x + player.width / 2,
+        bashTargetY: player.y + player.height / 2,
+        bashHit: false,
+        bashesCompleted: 0,
+        commandsIssued: 0
+    };
+}
+
+function createSecurityEscortConfig(index = 0) {
+    const leftEscort = index === 0;
+
+    return {
+        type: "aggressiveNurse",
+        securityEscort: true,
+        escortIndex: index,
+        x: leftEscort ? 125 : canvas.width - 185,
+        y: leftEscort ? 120 : canvas.height - 170,
+        width: 40,
+        height: 40,
+        health: 5,
+        maxHealth: 5,
+        speed: 2.04,
+        color: leftEscort ? "#79bc84" : "#91a85f",
+        knockbackResistance: 1.8,
+        nurseState: "flank",
+        nurseTimer: leftEscort ? 29 : 47,
+        flankSide: leftEscort ? -1 : 1,
+        windupDuration: 15,
+        rushDuration: 25,
+        rushSpeed: 5.05,
+        rushX: 0,
+        rushY: 0,
+        rushTargetX: player.x + player.width / 2,
+        rushTargetY: player.y + player.height / 2,
+        rushHit: false,
+        recoverDuration: 25,
+        rushesCompleted: 0
+    };
+}
+
+function spawnSecurityIntroductionEnemies() {
+    enemies.push(
+        createEnemy(
+            createSecurityGuardConfig()
+        )
+    );
+
+    spawnEnemyGroup(
+        2,
+        (index) =>
+            createSecurityEscortConfig(index)
+    );
+}
+
+function updateSecurityGuard(enemy, deltaTime) {
+    const enemyX =
+        enemy.x + enemy.width / 2;
+
+    const enemyY =
+        enemy.y + enemy.height / 2;
+
+    const playerX =
+        player.x + player.width / 2;
+
+    const playerY =
+        player.y + player.height / 2;
+
+    const distanceX =
+        playerX - enemyX;
+
+    const distanceY =
+        playerY - enemyY;
+
+    const distance =
+        Math.hypot(
+            distanceX,
+            distanceY
+        ) || 1;
+
+    const directionX =
+        distanceX / distance;
+
+    const directionY =
+        distanceY / distance;
+
+    const inputX =
+        Number(Boolean(keys.d)) -
+        Number(Boolean(keys.a));
+
+    const inputY =
+        Number(Boolean(keys.s)) -
+        Number(Boolean(keys.w));
+
+    const inputDistance =
+        Math.hypot(
+            inputX,
+            inputY
+        ) || 1;
+
+    const escorts = enemies.filter(
+        (candidate) =>
+            candidate.securityEscort
+    );
+
+    if (
+        [
+            "hold",
+            "windup",
+            "exposed"
+        ].includes(enemy.guardState)
+    ) {
+        const turnSpeed =
+            enemy.guardState === "windup"
+                ? 0.1
+                : 0.16;
+
+        const facingX =
+            enemy.facingX *
+                (1 - turnSpeed) +
+            directionX *
+                turnSpeed;
+
+        const facingY =
+            enemy.facingY *
+                (1 - turnSpeed) +
+            directionY *
+                turnSpeed;
+
+        const facingLength =
+            Math.hypot(
+                facingX,
+                facingY
+            ) || 1;
+
+        enemy.facingX =
+            facingX / facingLength;
+
+        enemy.facingY =
+            facingY / facingLength;
+    }
+
+    if (enemy.guardState === "hold") {
+        enemy.stateTimer -= deltaTime;
+
+        const targetX =
+            playerX +
+            inputX /
+                inputDistance *
+                74;
+
+        const targetY =
+            playerY +
+            inputY /
+                inputDistance *
+                74;
+
+        const moveX =
+            targetX - enemyX;
+
+        const moveY =
+            targetY - enemyY;
+
+        const moveDistance =
+            Math.hypot(
+                moveX,
+                moveY
+            ) || 1;
+
+        if (distance > 96) {
+            enemy.x +=
+                moveX /
+                moveDistance *
+                enemy.speed *
+                deltaTime;
+
+            enemy.y +=
+                moveY /
+                moveDistance *
+                enemy.speed *
+                deltaTime;
+
+        } else {
+            enemy.x -=
+                directionX *
+                enemy.speed *
+                0.18 *
+                deltaTime;
+
+            enemy.y -=
+                directionY *
+                enemy.speed *
+                0.18 *
+                deltaTime;
+        }
+
+        if (
+            escorts.some(
+                (escort) =>
+                    escort.nurseState === "rush"
+            )
+        ) {
+            enemy.stateTimer = Math.min(
+                enemy.stateTimer,
+                13
+            );
+        }
+
+        if (
+            enemy.stateTimer <= 0 &&
+            distance > 62 &&
+            distance < 260
+        ) {
+            enemy.guardState = "windup";
+
+            enemy.stateTimer =
+                enemy.windupDuration;
+
+            enemy.bashHit = false;
+
+            enemy.bashTargetX = playerX;
+            enemy.bashTargetY = playerY;
+
+            enemy.commandsIssued++;
+
+            escorts.forEach((escort) => {
+                if (
+                    escort.nurseState === "flank"
+                ) {
+                    escort.nurseTimer = Math.min(
+                        escort.nurseTimer,
+                        escort.escortIndex === 0
+                            ? 8
+                            : 16
+                    );
+                }
+            });
+
+        } else if (
+            enemy.stateTimer <= 0
+        ) {
+            enemy.stateTimer = 11;
+        }
+
+        return;
+    }
+
+    if (enemy.guardState === "windup") {
+        if (enemy.stateTimer > 4) {
+            enemy.bashTargetX = Math.max(
+                38,
+                Math.min(
+                    canvas.width - 38,
+                    playerX +
+                        inputX /
+                        inputDistance *
+                        76
+                )
+            );
+
+            enemy.bashTargetY = Math.max(
+                38,
+                Math.min(
+                    canvas.height - 38,
+                    playerY +
+                        inputY /
+                        inputDistance *
+                        76
+                )
+            );
+        }
+
+        enemy.stateTimer -= deltaTime;
+
+        if (enemy.stateTimer <= 0) {
+            const attackX =
+                enemy.bashTargetX -
+                enemyX;
+
+            const attackY =
+                enemy.bashTargetY -
+                enemyY;
+
+            const attackDistance =
+                Math.hypot(
+                    attackX,
+                    attackY
+                ) || 1;
+
+            enemy.bashX =
+                attackX /
+                attackDistance;
+
+            enemy.bashY =
+                attackY /
+                attackDistance;
+
+            enemy.guardState = "bash";
+
+            enemy.stateTimer =
+                enemy.bashDuration;
+
+            enemy.bashHit = false;
+        }
+
+        return;
+    }
+
+    if (enemy.guardState === "bash") {
+        enemy.stateTimer -= deltaTime;
+
+        enemy.x +=
+            enemy.bashX *
+            enemy.bashSpeed *
+            deltaTime;
+
+        enemy.y +=
+            enemy.bashY *
+            enemy.bashSpeed *
+            deltaTime;
+
+        if (
+            areEntitiesColliding(
+                player,
+                enemy
+            ) &&
+            !enemy.bashHit
+        ) {
+            enemy.bashHit = true;
+
+            enemy.touchingPlayer = true;
+
+            damagePlayerFromEntity(
+                0.5,
+                enemy,
+                12
+            );
+
+            enemy.guardState = "recover";
+
+            enemy.stateTimer =
+                enemy.recoverDuration;
+
+            enemy.bashesCompleted++;
+
+            return;
+        }
+
+        const hitWall =
+            enemy.x <= 20 ||
+            enemy.y <= 20 ||
+            enemy.x + enemy.width >=
+                canvas.width - 20 ||
+            enemy.y + enemy.height >=
+                canvas.height - 20;
+
+        if (
+            enemy.stateTimer <= 0 ||
+            hitWall
+        ) {
+            enemy.guardState = "recover";
+
+            enemy.stateTimer =
+                enemy.recoverDuration;
+
+            enemy.bashesCompleted++;
+        }
+
+        return;
+    }
+
+    if (enemy.guardState === "recover") {
+        enemy.stateTimer -= deltaTime;
+
+        if (enemy.stateTimer <= 0) {
+            enemy.guardState = "hold";
+
+            enemy.stateTimer =
+                enemy.attackCooldown +
+                Math.random() * 12;
+
+            enemy.bashHit = false;
+        }
+
+        return;
+    }
+
+    if (enemy.guardState === "exposed") {
+        enemy.stateTimer -= deltaTime;
+
+        enemy.x +=
+            directionX *
+            enemy.speed *
+            0.42 *
+            deltaTime;
+
+        enemy.y +=
+            directionY *
+            enemy.speed *
+            0.42 *
+            deltaTime;
+
+        if (enemy.stateTimer <= 0) {
+            enemy.shieldCharges =
+                enemy.maxShieldCharges;
+
+            enemy.guardState = "hold";
+
+            enemy.stateTimer = 19;
+        }
+    }
+}
+
+function updateSecurityEscortNurse(enemy, deltaTime) {
+    const enemyX =
+        enemy.x + enemy.width / 2;
+
+    const enemyY =
+        enemy.y + enemy.height / 2;
+
+    const playerX =
+        player.x + player.width / 2;
+
+    const playerY =
+        player.y + player.height / 2;
+
+    const distanceX =
+        playerX - enemyX;
+
+    const distanceY =
+        playerY - enemyY;
+
+    const distance =
+        Math.hypot(
+            distanceX,
+            distanceY
+        ) || 1;
+
+    const inputX =
+        Number(Boolean(keys.d)) -
+        Number(Boolean(keys.a));
+
+    const inputY =
+        Number(Boolean(keys.s)) -
+        Number(Boolean(keys.w));
+
+    const inputDistance =
+        Math.hypot(
+            inputX,
+            inputY
+        ) || 1;
+
+    const guard = enemies.find(
+        (candidate) =>
+            candidate.type === "securityGuard"
+    );
+
+    if (enemy.nurseState === "flank") {
+        enemy.nurseTimer -= deltaTime;
+
+        let referenceX =
+            distanceX / distance;
+
+        let referenceY =
+            distanceY / distance;
+
+        if (guard) {
+            const guardX =
+                playerX -
+                guard.x -
+                guard.width / 2;
+
+            const guardY =
+                playerY -
+                guard.y -
+                guard.height / 2;
+
+            const guardDistance =
+                Math.hypot(
+                    guardX,
+                    guardY
+                ) || 1;
+
+            referenceX =
+                guardX / guardDistance;
+
+            referenceY =
+                guardY / guardDistance;
+        }
+
+        const exposedGuard =
+            guard &&
+            guard.guardState === "exposed";
+
+        const flankDistance =
+            exposedGuard
+                ? 56
+                : 94;
+
+        const flankX =
+            -referenceY *
+            enemy.flankSide;
+
+        const flankY =
+            referenceX *
+            enemy.flankSide;
+
+        const targetX = Math.max(
+            38,
+            Math.min(
+                canvas.width - 38,
+                playerX +
+                    flankX *
+                    flankDistance +
+                    inputX /
+                    inputDistance *
+                    54
+            )
+        );
+
+        const targetY = Math.max(
+            38,
+            Math.min(
+                canvas.height - 38,
+                playerY +
+                    flankY *
+                    flankDistance +
+                    inputY /
+                    inputDistance *
+                    54
+            )
+        );
+
+        const moveX =
+            targetX - enemyX;
+
+        const moveY =
+            targetY - enemyY;
+
+        const moveDistance =
+            Math.hypot(
+                moveX,
+                moveY
+            ) || 1;
+
+        const escortSpeed =
+            enemy.speed *
+            (
+                exposedGuard
+                    ? 1.2
+                    : guard
+                        ? 1
+                        : 1.18
+            );
+
+        enemy.x +=
+            moveX /
+            moveDistance *
+            escortSpeed *
+            deltaTime;
+
+        enemy.y +=
+            moveY /
+            moveDistance *
+            escortSpeed *
+            deltaTime;
+
+        if (exposedGuard) {
+            enemy.nurseTimer = Math.min(
+                enemy.nurseTimer,
+                enemy.escortIndex === 0
+                    ? 10
+                    : 18
+            );
+        }
+
+        if (
+            enemy.nurseTimer <= 0 &&
+            distance > 55 &&
+            distance < 410
+        ) {
+            const predictionDistance =
+                exposedGuard
+                    ? 80
+                    : 65;
+
+            const targetPlayerX =
+                playerX +
+                inputX /
+                inputDistance *
+                predictionDistance;
+
+            const targetPlayerY =
+                playerY +
+                inputY /
+                inputDistance *
+                predictionDistance;
+
+            const rushX =
+                targetPlayerX -
+                enemyX;
+
+            const rushY =
+                targetPlayerY -
+                enemyY;
+
+            const rushDistance =
+                Math.hypot(
+                    rushX,
+                    rushY
+                ) || 1;
+
+            enemy.rushTargetX =
+                targetPlayerX;
+
+            enemy.rushTargetY =
+                targetPlayerY;
+
+            enemy.rushX =
+                rushX /
+                rushDistance;
+
+            enemy.rushY =
+                rushY /
+                rushDistance;
+
+            enemy.nurseState = "windup";
+
+            enemy.nurseTimer = guard
+                ? enemy.windupDuration
+                : 12;
+
+            enemy.rushHit = false;
+
+        } else if (
+            enemy.nurseTimer <= 0
+        ) {
+            enemy.nurseTimer = 12;
+        }
+
+        return;
+    }
+
+    if (enemy.nurseState === "windup") {
+        if (enemy.nurseTimer > 4) {
+            const predictedX =
+                playerX +
+                inputX /
+                inputDistance *
+                72;
+
+            const predictedY =
+                playerY +
+                inputY /
+                inputDistance *
+                72;
+
+            const rushX =
+                predictedX -
+                enemyX;
+
+            const rushY =
+                predictedY -
+                enemyY;
+
+            const rushDistance =
+                Math.hypot(
+                    rushX,
+                    rushY
+                ) || 1;
+
+            enemy.rushTargetX =
+                predictedX;
+
+            enemy.rushTargetY =
+                predictedY;
+
+            enemy.rushX =
+                rushX /
+                rushDistance;
+
+            enemy.rushY =
+                rushY /
+                rushDistance;
+        }
+
+        enemy.nurseTimer -= deltaTime;
+
+        if (enemy.nurseTimer <= 0) {
+            enemy.nurseState = "rush";
+
+            enemy.nurseTimer =
+                enemy.rushDuration;
+
+            enemy.rushHit = false;
+        }
+
+        return;
+    }
+
+    if (enemy.nurseState === "rush") {
+        enemy.nurseTimer -= deltaTime;
+
+        enemy.x +=
+            enemy.rushX *
+            enemy.rushSpeed *
+            deltaTime;
+
+        enemy.y +=
+            enemy.rushY *
+            enemy.rushSpeed *
+            deltaTime;
+
+        if (
+            areEntitiesColliding(
+                player,
+                enemy
+            ) &&
+            !enemy.rushHit
+        ) {
+            enemy.rushHit = true;
+
+            enemy.touchingPlayer = true;
+
+            damagePlayerFromEntity(
+                0.5,
+                enemy,
+                9
+            );
+
+            enemy.nurseState = "recover";
+
+            enemy.nurseTimer =
+                enemy.recoverDuration;
+
+            enemy.rushesCompleted++;
+
+            return;
+        }
+
+        const hitWall =
+            enemy.x <= 20 ||
+            enemy.y <= 20 ||
+            enemy.x + enemy.width >=
+                canvas.width - 20 ||
+            enemy.y + enemy.height >=
+                canvas.height - 20;
+
+        if (
+            enemy.nurseTimer <= 0 ||
+            hitWall
+        ) {
+            enemy.nurseState = "recover";
+
+            enemy.nurseTimer =
+                enemy.recoverDuration;
+
+            enemy.rushesCompleted++;
+        }
+
+        return;
+    }
+
+    if (enemy.nurseState === "recover") {
+        enemy.nurseTimer -= deltaTime;
+
+        if (enemy.nurseTimer <= 0) {
+            enemy.nurseState = "flank";
+
+            enemy.nurseTimer = guard
+                ? 34 + enemy.escortIndex * 9
+                : 21;
+        }
+    }
+}
 function getEnemyUpdateHandler(enemy) {
-    if (enemy.type === "stretcherBearer") {
+    if (
+        enemy.type === "stretcherBearer"
+    ) {
         return updateStretcherBearer;
+    }
+
+    if (
+        enemy.type === "securityGuard"
+    ) {
+        return updateSecurityGuard;
     }
 
     if (
@@ -3502,12 +4312,18 @@ function getEnemyUpdateHandler(enemy) {
         return updateTransferHunterLeper;
     }
 
-    if (enemy.type === "anesthesiologist") {
-        if (enemy.preparationAnesthesiologist) {
+    if (
+        enemy.type === "anesthesiologist"
+    ) {
+        if (
+            enemy.preparationAnesthesiologist
+        ) {
             return updatePreparationAnesthesiologist;
         }
 
-        if (enemy.bossAssistant) {
+        if (
+            enemy.bossAssistant
+        ) {
             return updateBossAnesthesiologist;
         }
 
@@ -3516,13 +4332,23 @@ function getEnemyUpdateHandler(enemy) {
             : updateFallbackAnesthesiologist;
     }
 
-    if (enemy.type === "aggressiveNurse") {
+    if (
+        enemy.type === "aggressiveNurse"
+    ) {
+        if (
+            enemy.securityEscort
+        ) {
+            return updateSecurityEscortNurse;
+        }
+
         return enemy.surgicalPreparationNurse
             ? updateSurgicalPreparationNurse
             : updateAggressiveNurse;
     }
 
-    if (enemy.type === "surgeon") {
+    if (
+        enemy.type === "surgeon"
+    ) {
         return enemy.surgicalPreparationSurgeon
             ? updateSurgicalPreparationSurgeon
             : updateSurgeon;
