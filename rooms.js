@@ -492,6 +492,12 @@ function canEnterRoom(fromRoomId, targetRoomId) {
 
     return true;
 }
+const doorDirections = {
+    top: "up",
+    bottom: "down",
+    left: "left",
+    right: "right"
+};
 function updateDoors() {
     Object.entries(
         doorDirections
