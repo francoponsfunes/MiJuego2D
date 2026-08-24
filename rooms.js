@@ -244,7 +244,7 @@ const LEVEL_2_ROOM_DEFINITIONS = [
         id: 16,
         type: "securityWard",
         name: "Guardia de internación",
-        enemyCount: 0,
+        enemyCount: 3,
         plannedEnemyCount: 3,
         keyReward: true,
         color: "#30313d",
@@ -254,6 +254,7 @@ const LEVEL_2_ROOM_DEFINITIONS = [
         left: 19,
         right: 15
     },
+        
 
     {
         id: 17,
@@ -1345,95 +1346,29 @@ function resetBossForFight() {
     bossProjectiles.length = 0;
 }
 function spawnRoomEnemies(room) {
-
-    // ============================================================
-    // SALA DE ANESTESIA
-    // ============================================================
-
-    if (
-
-        room.type === "anesthesiaPreparation"
-
-    ) {
-
+    if (room.type === "anesthesiaPreparation") {
         spawnAnesthesiaPreparationEnemies();
 
-
-    // ============================================================
-    // PREPARACIÓN QUIRÚRGICA
-    // ============================================================
-
-    } else if (
-
-        room.type === "surgicalPreparation"
-
-    ) {
-
+    } else if (room.type === "surgicalPreparation") {
         spawnSurgicalPreparationEnemies();
 
-
-    // ============================================================
-    // PRESENTACIÓN DEL CAMILLERO
-    // ============================================================
-
-    } else if (
-
-        room.type === "transferIntroduction"
-
-    ) {
-
+    } else if (room.type === "transferIntroduction") {
         spawnTransferIntroductionEnemies();
 
-
-    // ============================================================
-    // PUESTO DEL CELADOR
-    // ============================================================
-
-    } else if (
-
-        room.type === "securityIntroduction"
-
-    ) {
-
+    } else if (room.type === "securityIntroduction") {
         spawnSecurityIntroductionEnemies();
 
-
-    // ============================================================
-    // PASILLO DE TRASLADOS
-    // ============================================================
-
-    } else if (
-
-        room.type === "transferCorridor"
-
-    ) {
-
+    } else if (room.type === "transferCorridor") {
         spawnTransferCorridorEnemies();
 
-
-    // ============================================================
-    // CRUCE DE INTERNACIÓN
-    // ============================================================
-
-    } else if (
-
-        room.type === "inpatientJunction"
-
-    ) {
-
+    } else if (room.type === "inpatientJunction") {
         spawnInpatientJunctionEnemies();
 
-
-    // ============================================================
-    // RESTO DE LAS SALAS
-    // ============================================================
+    } else if (room.type === "securityWard") {
+        spawnSecurityWardEnemies();
 
     } else {
-
-        spawnEnemies(
-
-            room.enemyCount
-        );
+        spawnEnemies(room.enemyCount);
     }
 }
 // ============================================================================

@@ -2979,45 +2979,131 @@ function spawnInpatientJunctionEnemies() {
 
     enemies.push(createEnemy(escort));
 }
+function spawnSecurityWardEnemies() {
+    rooms[currentRoom].securityWardOpeningUntil =
+        performance.now() + 540;
+
+    const guard =
+        createSecurityGuardConfig();
+
+    guard.x =
+        canvas.width / 2 -
+        (guard.width || 48) / 2;
+
+    guard.y =
+        canvas.height / 2 - 90;
+
+    guard.securityWardGuard = true;
+    guard.wardInterceptSide = 1;
+
+    if (
+        Number.isFinite(
+            guard.guardTimer
+        )
+    ) {
+        guard.guardTimer =
+            Math.max(
+                guard.guardTimer,
+                42
+            );
+
+    } else if (
+        Number.isFinite(
+            guard.stateTimer
+        )
+    ) {
+        guard.stateTimer =
+            Math.max(
+                guard.stateTimer,
+                42
+            );
+    }
+
+    enemies.push(
+        createEnemy(guard)
+    );
+
+    enemies.push(
+        createEnemy({
+            type: "surgeon",
+            securityWardSurgeon: true,
+            x: canvas.width - 155,
+            y: 105,
+            width: 44,
+            height: 44,
+            speed: 1.35,
+            health: 7,
+            maxHealth: 7,
+            color: "#e7bc68",
+            knockbackResistance: 2,
+            movementX: 0,
+            movementY: 0,
+            movementSpeed: 1.48,
+            strafeDirection: -1,
+            strafeTimer: 82,
+            minimumDistance: 155,
+            maximumDistance: 315,
+            aimWarningDuration: 19,
+            shootTimer: 58,
+            shootCooldown: 88,
+            commandVolleyState: "idle",
+            commandVolleyTimer: 0,
+            commandVolleySpread: 0.21,
+            commandVolleyCount: 0,
+            wardShotsSinceFan: 0,
+            wardFanCount: 0,
+            wardCoordinatedShots: 0,
+            wardShotScheduled: false
+        })
+    );
+
+    const escort =
+        createSecurityEscortConfig(0);
+
+    escort.x = 115;
+    escort.y = canvas.height - 160;
+    escort.securityEscort = true;
+    escort.securityWardEscort = true;
+    escort.flankSide = -1;
+
+    if (
+        Number.isFinite(
+            escort.nurseTimer
+        )
+    ) {
+        escort.nurseTimer =
+            Math.max(
+                escort.nurseTimer,
+                56
+            );
+    }
+
+    enemies.push(
+        createEnemy(escort)
+    );
+}
 function updateStretcherBearer(enemy, deltaTime) {
-    const enemyX =
-        enemy.x + enemy.width / 2;
+    const enemyX = enemy.x + enemy.width / 2;
+    const enemyY = enemy.y + enemy.height / 2;
 
-    const enemyY =
-        enemy.y + enemy.height / 2;
+    const playerX = player.x + player.width / 2;
+    const playerY = player.y + player.height / 2;
 
-    const playerX =
-        player.x + player.width / 2;
-
-    const playerY =
-        player.y + player.height / 2;
-
-    const distanceX =
-        playerX - enemyX;
-
-    const distanceY =
-        playerY - enemyY;
+    const distanceX = playerX - enemyX;
+    const distanceY = playerY - enemyY;
 
     const distance =
-        Math.hypot(
-            distanceX,
-            distanceY
-        ) || 1;
+        Math.hypot(distanceX, distanceY) || 1;
 
-    const directionX =
-        distanceX / distance;
-
-    const directionY =
-        distanceY / distance;
+    const directionX = distanceX / distance;
+    const directionY = distanceY / distance;
 
     const escort = enemies.find((candidate) =>
         candidate.type === "leper" &&
         candidate.transferHunter
     );
 
-    if (
-        enemy.stretcherState === "reposition"
-    ) {
+    if (enemy.stretcherState === "reposition") {
         enemy.stateTimer -= deltaTime;
 
         if (escort) {
@@ -3035,59 +3121,47 @@ function updateStretcherBearer(enemy, deltaTime) {
                 escortX * -directionY +
                 escortY * directionX;
 
-            if (
-                Math.abs(escortSide) > 22
-            ) {
+            if (Math.abs(escortSide) > 22) {
                 enemy.orbitDirection =
-                    escortSide > 0
-                        ? -1
-                        : 1;
+                    escortSide > 0 ? -1 : 1;
             }
 
             if (
-                [
-                    "windup",
-                    "rush"
-                ].includes(
+                ["windup", "rush"].includes(
                     escort.leperState
                 )
             ) {
-                enemy.stateTimer =
-                    Math.min(
-                        enemy.stateTimer,
-                        19
-                    );
+                enemy.stateTimer = Math.min(
+                    enemy.stateTimer,
+                    15
+                );
             }
         }
 
-        if (distance < 105) {
-            enemy.stateTimer =
-                Math.min(
-                    enemy.stateTimer,
-                    16
-                );
+        if (distance < 115) {
+            enemy.stateTimer = Math.min(
+                enemy.stateTimer,
+                13
+            );
         }
 
         const orbitX =
-            -directionY *
-            enemy.orbitDirection;
+            -directionY * enemy.orbitDirection;
 
         const orbitY =
-            directionX *
-            enemy.orbitDirection;
+            directionX * enemy.orbitDirection;
 
-        const distanceCorrection =
-            Math.max(
-                -1,
-                Math.min(
-                    1,
-                    (
-                        distance -
-                        enemy.preferredDistance
-                    ) /
-                        enemy.preferredDistance
-                )
-            );
+        const distanceCorrection = Math.max(
+            -1,
+            Math.min(
+                1,
+                (
+                    distance -
+                    enemy.preferredDistance
+                ) /
+                    enemy.preferredDistance
+            )
+        );
 
         let movementX =
             orbitX * 0.52 +
@@ -3102,11 +3176,8 @@ function updateStretcherBearer(enemy, deltaTime) {
                 1.32;
 
         if (distance > 295) {
-            movementX +=
-                directionX * 0.82;
-
-            movementY +=
-                directionY * 0.82;
+            movementX += directionX * 0.82;
+            movementY += directionY * 0.82;
         }
 
         const movementDistance =
@@ -3132,19 +3203,15 @@ function updateStretcherBearer(enemy, deltaTime) {
             distance > 78 &&
             distance < 390
         ) {
-            enemy.stretcherState =
-                "windup";
+            enemy.stretcherState = "windup";
 
             enemy.stateTimer =
                 enemy.windupDuration;
 
             enemy.chargeHit = false;
 
-            enemy.chargeTargetX =
-                playerX;
-
-            enemy.chargeTargetY =
-                playerY;
+            enemy.chargeTargetX = playerX;
+            enemy.chargeTargetY = playerY;
 
         } else if (
             enemy.stateTimer <= 0
@@ -3155,37 +3222,25 @@ function updateStretcherBearer(enemy, deltaTime) {
         return;
     }
 
-    if (
-        enemy.stretcherState === "windup"
-    ) {
-        const targetLockThreshold =
-            Math.max(
-                7,
-                Math.round(
-                    enemy.windupDuration *
-                    0.30
-                )
-            );
+    if (enemy.stretcherState === "windup") {
+        const targetLockThreshold = Math.max(
+            6,
+            Math.round(
+                enemy.windupDuration * 0.25
+            )
+        );
 
         if (
             enemy.stateTimer >
             targetLockThreshold
         ) {
             const inputX =
-                Number(
-                    Boolean(keys.d)
-                ) -
-                Number(
-                    Boolean(keys.a)
-                );
+                Number(Boolean(keys.d)) -
+                Number(Boolean(keys.a));
 
             const inputY =
-                Number(
-                    Boolean(keys.s)
-                ) -
-                Number(
-                    Boolean(keys.w)
-                );
+                Number(Boolean(keys.s)) -
+                Number(Boolean(keys.w));
 
             const inputDistance =
                 Math.hypot(
@@ -3199,17 +3254,17 @@ function updateStretcherBearer(enemy, deltaTime) {
 
             const predictionDistance =
                 Math.min(
-                    104,
+                    122,
                     (
                         travelFrames +
                         Math.min(
                             enemy.stateTimer,
-                            6
+                            7
                         )
                     ) *
                         player.speed *
                         PLAYER_SPEED_MULTIPLIER *
-                        0.82
+                        0.93
                 );
 
             let escapePressureX = 0;
@@ -3241,12 +3296,12 @@ function updateStretcherBearer(enemy, deltaTime) {
                 escapePressureX =
                     escapeX /
                     escapeDistance *
-                    15;
+                    18;
 
                 escapePressureY =
                     escapeY /
                     escapeDistance *
-                    15;
+                    18;
             }
 
             enemy.chargeTargetX =
@@ -3278,9 +3333,7 @@ function updateStretcherBearer(enemy, deltaTime) {
 
         enemy.stateTimer -= deltaTime;
 
-        if (
-            enemy.stateTimer <= 0
-        ) {
+        if (enemy.stateTimer <= 0) {
             const attackX =
                 enemy.chargeTargetX -
                 enemyX;
@@ -3303,8 +3356,7 @@ function updateStretcherBearer(enemy, deltaTime) {
                 attackY /
                 attackDistance;
 
-            enemy.stretcherState =
-                "charge";
+            enemy.stretcherState = "charge";
 
             enemy.stateTimer =
                 Math.max(
@@ -3321,9 +3373,7 @@ function updateStretcherBearer(enemy, deltaTime) {
         return;
     }
 
-    if (
-        enemy.stretcherState === "charge"
-    ) {
+    if (enemy.stretcherState === "charge") {
         enemy.stateTimer -= deltaTime;
 
         enemy.x +=
@@ -3353,8 +3403,7 @@ function updateStretcherBearer(enemy, deltaTime) {
                 11
             );
 
-            enemy.stretcherState =
-                "recover";
+            enemy.stretcherState = "recover";
 
             enemy.stateTimer =
                 enemy.recoverDuration;
@@ -3376,16 +3425,11 @@ function updateStretcherBearer(enemy, deltaTime) {
             enemy.stateTimer <= 0 ||
             hitWall
         ) {
-            enemy.stretcherState =
-                "recover";
+            enemy.stretcherState = "recover";
 
             enemy.stateTimer =
                 enemy.recoverDuration +
-                (
-                    hitWall
-                        ? 7
-                        : 0
-                );
+                (hitWall ? 7 : 0);
 
             enemy.chargesCompleted++;
         }
@@ -3393,9 +3437,7 @@ function updateStretcherBearer(enemy, deltaTime) {
         return;
     }
 
-    if (
-        enemy.stretcherState === "recover"
-    ) {
+    if (enemy.stretcherState === "recover") {
         enemy.stateTimer -= deltaTime;
 
         enemy.x -=
@@ -3408,15 +3450,13 @@ function updateStretcherBearer(enemy, deltaTime) {
             0.24 *
             deltaTime;
 
-        if (
-            enemy.stateTimer <= 0
-        ) {
-            enemy.stretcherState =
-                "reposition";
+        if (enemy.stateTimer <= 0) {
+            enemy.stretcherState = "reposition";
 
             enemy.stateTimer =
-                enemy.repositionDuration +
-                Math.random() * 12;
+                enemy.repositionDuration *
+                    0.87 +
+                Math.random() * 9;
 
             enemy.orbitDirection *= -1;
 
@@ -5833,164 +5873,653 @@ function updateInpatientJunctionEscort(enemy, deltaTime) {
         currentCombat.finishTurn();
     }
 }
-function getEnemyUpdateHandler(enemy) {
+function updateSecurityWardGuard(
+    enemy,
+    deltaTime
+) {
+    const surgeon =
+        enemies.find((candidate) =>
+            candidate.type === "surgeon" &&
+            candidate.securityWardSurgeon
+        );
 
-    // ============================================================
-    // CAMILLEROS
-    // ============================================================
+    const escort =
+        enemies.find((candidate) =>
+            candidate.type === "aggressiveNurse" &&
+            candidate.securityWardEscort
+        );
+
+    const previousState =
+        enemy.guardState;
 
     if (
-
-        enemy.type === "stretcherBearer"
-
+        surgeon &&
+        enemy.guardState === "hold"
     ) {
+        const playerX =
+            player.x +
+            player.width / 2;
 
+        const playerY =
+            player.y +
+            player.height / 2;
+
+        const surgeonX =
+            surgeon.x +
+            surgeon.width / 2;
+
+        const surgeonY =
+            surgeon.y +
+            surgeon.height / 2;
+
+        const guardX =
+            enemy.x +
+            enemy.width / 2;
+
+        const guardY =
+            enemy.y +
+            enemy.height / 2;
+
+        const laneX =
+            playerX - surgeonX;
+
+        const laneY =
+            playerY - surgeonY;
+
+        const laneDistance =
+            Math.hypot(
+                laneX,
+                laneY
+            ) || 1;
+
+        const escortAttacking =
+            Boolean(
+                escort &&
+                [
+                    "windup",
+                    "rush"
+                ].includes(
+                    escort.nurseState
+                )
+            );
+
+        const protectionDistance =
+            Math.min(
+                145,
+                laneDistance * 0.46
+            );
+
+        const sidewaysOffset =
+            escortAttacking
+                ? 32
+                : 18;
+
+        const targetX =
+            surgeonX +
+            laneX /
+                laneDistance *
+                protectionDistance +
+            -laneY /
+                laneDistance *
+                enemy.wardInterceptSide *
+                sidewaysOffset;
+
+        const targetY =
+            surgeonY +
+            laneY /
+                laneDistance *
+                protectionDistance +
+            laneX /
+                laneDistance *
+                enemy.wardInterceptSide *
+                sidewaysOffset;
+
+        const movementX =
+            targetX - guardX;
+
+        const movementY =
+            targetY - guardY;
+
+        const movementDistance =
+            Math.hypot(
+                movementX,
+                movementY
+            ) || 1;
+
+        if (
+            movementDistance > 22
+        ) {
+            enemy.x +=
+                movementX /
+                movementDistance *
+                0.38 *
+                deltaTime;
+
+            enemy.y +=
+                movementY /
+                movementDistance *
+                0.38 *
+                deltaTime;
+        }
+    }
+
+    updateSecurityGuard(
+        enemy,
+        deltaTime
+    );
+
+    if (
+        previousState !== "exposed" &&
+        enemy.guardState === "exposed"
+    ) {
+        enemy.wardInterceptSide *= -1;
+    }
+}
+function updateSecurityWardSurgeon(
+    enemy,
+    deltaTime
+) {
+    const guard =
+        enemies.find((candidate) =>
+            candidate.type === "securityGuard" &&
+            candidate.securityWardGuard
+        );
+
+    const escort =
+        enemies.find((candidate) =>
+            candidate.type === "aggressiveNurse" &&
+            candidate.securityWardEscort
+        );
+
+    const alliesAlive =
+        Number(Boolean(guard)) +
+        Number(Boolean(escort));
+
+    const escortAttacking =
+        Boolean(
+            escort &&
+            [
+                "windup",
+                "rush"
+            ].includes(
+                escort.nurseState
+            )
+        );
+
+    const guardAttacking =
+        Boolean(
+            guard &&
+            [
+                "windup",
+                "bash"
+            ].includes(
+                guard.guardState
+            )
+        );
+
+    enemy.shootCooldown =
+        alliesAlive >= 2
+            ? 88
+            : alliesAlive === 1
+                ? 76
+                : 64;
+
+    enemy.commandVolleySpread =
+        alliesAlive === 0
+            ? 0.24
+            : 0.21;
+
+    if (
+        guard &&
+        guard.guardState === "hold"
+    ) {
+        const playerX =
+            player.x +
+            player.width / 2;
+
+        const playerY =
+            player.y +
+            player.height / 2;
+
+        const guardX =
+            guard.x +
+            guard.width / 2;
+
+        const guardY =
+            guard.y +
+            guard.height / 2;
+
+        const surgeonX =
+            enemy.x +
+            enemy.width / 2;
+
+        const surgeonY =
+            enemy.y +
+            enemy.height / 2;
+
+        const laneX =
+            playerX - guardX;
+
+        const laneY =
+            playerY - guardY;
+
+        const laneDistance =
+            Math.hypot(
+                laneX,
+                laneY
+            ) || 1;
+
+        const targetX =
+            guardX -
+            laneX /
+                laneDistance *
+                118;
+
+        const targetY =
+            guardY -
+            laneY /
+                laneDistance *
+                118;
+
+        const movementX =
+            targetX -
+            surgeonX;
+
+        const movementY =
+            targetY -
+            surgeonY;
+
+        const movementDistance =
+            Math.hypot(
+                movementX,
+                movementY
+            ) || 1;
+
+        if (
+            movementDistance > 36
+        ) {
+            enemy.x +=
+                movementX /
+                movementDistance *
+                0.34 *
+                deltaTime;
+
+            enemy.y +=
+                movementY /
+                movementDistance *
+                0.34 *
+                deltaTime;
+        }
+    }
+
+    if (
+        escortAttacking &&
+        !enemy.wardShotScheduled &&
+        enemy.commandVolleyState !== "windup" &&
+        enemy.shootTimer >
+            enemy.aimWarningDuration + 6
+    ) {
+        enemy.shootTimer =
+            Math.min(
+                enemy.shootTimer,
+                Math.max(
+                    enemy.aimWarningDuration + 3,
+                    escort.nurseTimer + 9
+                )
+            );
+
+        enemy.wardShotScheduled = true;
+    }
+
+    if (!escortAttacking) {
+        enemy.wardShotScheduled = false;
+    }
+
+    const shotsBeforeFan =
+        alliesAlive >= 2
+            ? 2
+            : 1;
+
+    if (
+        enemy.wardShotsSinceFan >=
+            shotsBeforeFan &&
+        enemy.commandVolleyState === "idle" &&
+        enemy.shootTimer <=
+            enemy.aimWarningDuration + 3 &&
+        !escortAttacking &&
+        !guardAttacking
+    ) {
+        enemy.commandVolleyState =
+            "windup";
+
+        enemy.commandVolleyTimer =
+            alliesAlive === 0
+                ? 20
+                : 25;
+
+        enemy.shootTimer =
+            Math.max(
+                enemy.shootTimer,
+                45
+            );
+    }
+
+    const projectilesBefore =
+        enemyProjectiles.length;
+
+    const volleysBefore =
+        enemy.commandVolleyCount;
+
+    updateSurgeon(
+        enemy,
+        deltaTime
+    );
+
+    const projectilesCreated =
+        enemyProjectiles.length -
+        projectilesBefore;
+
+    if (
+        projectilesCreated <= 0
+    ) {
+        return;
+    }
+
+    if (
+        enemy.commandVolleyCount >
+        volleysBefore
+    ) {
+        enemy.wardShotsSinceFan = 0;
+
+        enemy.wardFanCount++;
+
+    } else {
+        enemy.wardShotsSinceFan++;
+
+        if (
+            escortAttacking ||
+            guardAttacking
+        ) {
+            enemy.wardCoordinatedShots++;
+        }
+    }
+}
+function updateSecurityWardEscort(
+    enemy,
+    deltaTime
+) {
+    const guard =
+        enemies.find((candidate) =>
+            candidate.type === "securityGuard" &&
+            candidate.securityWardGuard
+        );
+
+    const surgeon =
+        enemies.find((candidate) =>
+            candidate.type === "surgeon" &&
+            candidate.securityWardSurgeon
+        );
+
+    const waitingToAttack =
+        [
+            "intercept",
+            "chase"
+        ].includes(
+            enemy.nurseState
+        );
+
+    if (
+        guard &&
+        waitingToAttack
+    ) {
+        const playerX =
+            player.x +
+            player.width / 2;
+
+        const playerY =
+            player.y +
+            player.height / 2;
+
+        const guardX =
+            guard.x +
+            guard.width / 2;
+
+        const guardY =
+            guard.y +
+            guard.height / 2;
+
+        const nurseX =
+            enemy.x +
+            enemy.width / 2;
+
+        const nurseY =
+            enemy.y +
+            enemy.height / 2;
+
+        const laneX =
+            playerX -
+            guardX;
+
+        const laneY =
+            playerY -
+            guardY;
+
+        const laneDistance =
+            Math.hypot(
+                laneX,
+                laneY
+            ) || 1;
+
+        const targetX =
+            playerX +
+            -laneY /
+                laneDistance *
+                enemy.flankSide *
+                112;
+
+        const targetY =
+            playerY +
+            laneX /
+                laneDistance *
+                enemy.flankSide *
+                112;
+
+        const movementX =
+            targetX -
+            nurseX;
+
+        const movementY =
+            targetY -
+            nurseY;
+
+        const movementDistance =
+            Math.hypot(
+                movementX,
+                movementY
+            ) || 1;
+
+        if (
+            movementDistance > 32
+        ) {
+            enemy.x +=
+                movementX /
+                movementDistance *
+                0.32 *
+                deltaTime;
+
+            enemy.y +=
+                movementY /
+                movementDistance *
+                0.32 *
+                deltaTime;
+        }
+    }
+
+    if (
+        waitingToAttack &&
+        Number.isFinite(
+            enemy.nurseTimer
+        )
+    ) {
+        const roomOpening =
+            performance.now() <
+            (
+                rooms[currentRoom]
+                    .securityWardOpeningUntil ||
+                0
+            );
+
+        const guardAttacking =
+            Boolean(
+                guard &&
+                [
+                    "windup",
+                    "bash"
+                ].includes(
+                    guard.guardState
+                )
+            );
+
+        const surgeonPreparingFan =
+            Boolean(
+                surgeon &&
+                surgeon.commandVolleyState ===
+                    "windup"
+            );
+
+        if (
+            roomOpening ||
+            guardAttacking ||
+            surgeonPreparingFan
+        ) {
+            enemy.nurseTimer =
+                Math.max(
+                    enemy.nurseTimer,
+                    12
+                );
+
+        } else if (
+            surgeon &&
+            surgeon.shootTimer <=
+                surgeon.aimWarningDuration +
+                    8
+        ) {
+            enemy.nurseTimer =
+                Math.min(
+                    enemy.nurseTimer,
+                    21
+                );
+        }
+    }
+
+    updateSecurityEscortNurse(
+        enemy,
+        deltaTime
+    );
+}
+function getEnemyUpdateHandler(enemy) {
+    if (
+        enemy.type === "stretcherBearer"
+    ) {
         return enemy.inpatientJunctionStretcher
-
             ? updateInpatientJunctionStretcher
-
             : updateStretcherBearer;
     }
 
-
-    // ============================================================
-    // CELADORES
-    // ============================================================
-
     if (
-
         enemy.type === "securityGuard"
-
     ) {
+        if (
+            enemy.securityWardGuard
+        ) {
+            return updateSecurityWardGuard;
+        }
 
         return enemy.inpatientJunctionGuard
-
             ? updateInpatientJunctionGuard
-
             : updateSecurityGuard;
     }
 
-
-    // ============================================================
-    // LEPROSO INTERCEPTOR
-    // ============================================================
-
     if (
-
         enemy.type === "leper" &&
-
         enemy.transferHunter
-
     ) {
-
         return updateTransferHunterLeper;
     }
 
-
-    // ============================================================
-    // ANESTESIÓLOGOS
-    // ============================================================
-
     if (
-
         enemy.type === "anesthesiologist"
-
     ) {
-
         if (
-
             enemy.preparationAnesthesiologist
-
         ) {
-
             return updatePreparationAnesthesiologist;
         }
 
         if (
-
             enemy.bossAssistant
-
         ) {
-
             return updateBossAnesthesiologist;
         }
 
-        return isCurrentRoomType("trauma")
-
+        return isCurrentRoomType(
+            "trauma"
+        )
             ? updateAnesthesiologist
-
             : updateFallbackAnesthesiologist;
     }
 
-
-    // ============================================================
-    // ENFERMERAS
-    // ============================================================
-
     if (
-
         enemy.type === "aggressiveNurse"
-
     ) {
+        if (
+            enemy.securityWardEscort
+        ) {
+            return updateSecurityWardEscort;
+        }
 
         if (
-
             enemy.inpatientJunctionEscort
-
         ) {
-
             return updateInpatientJunctionEscort;
         }
 
         if (
-
             enemy.securityEscort
-
         ) {
-
             return updateSecurityEscortNurse;
         }
 
         return enemy.surgicalPreparationNurse
-
             ? updateSurgicalPreparationNurse
-
             : updateAggressiveNurse;
     }
 
-
-    // ============================================================
-    // CIRUJANOS
-    // ============================================================
-
     if (
-
         enemy.type === "surgeon"
-
     ) {
+        if (
+            enemy.securityWardSurgeon
+        ) {
+            return updateSecurityWardSurgeon;
+        }
 
         if (
-
             enemy.corridorSupport
-
         ) {
-
             return updateTransferCorridorSurgeon;
         }
 
         return enemy.surgicalPreparationSurgeon
-
             ? updateSurgicalPreparationSurgeon
-
             : updateSurgeon;
     }
 
-
-    // ============================================================
-    // RESTO DE LOS ENEMIGOS
-    // ============================================================
-
-    return ENEMY_UPDATE_HANDLERS[enemy.type] || null;
+    return (
+        ENEMY_UPDATE_HANDLERS[
+            enemy.type
+        ] || null
+    );
 }
 function updateEnemyKnockbackAndBounds(enemy, deltaTime) {
     enemy.x += enemy.knockbackX * deltaTime;

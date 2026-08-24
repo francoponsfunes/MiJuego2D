@@ -85,129 +85,100 @@ function separateEntities(
     second[axis] += push * direction;
 }
 function dropDefeatedEnemyRewards(enemy) {
-
-    // ============================================================
-    // CRUCE DE INTERNACIÓN
-    // CORAZÓN ENTERO AL DERROTAR AL ÚLTIMO ENEMIGO
-    // ============================================================
-
     if (
-
-        isCurrentRoomType("inpatientJunction") &&
-
+        isCurrentRoomType(
+            "inpatientJunction"
+        ) &&
         enemies.length === 0 &&
-
         !rooms[currentRoom].rewardDropped
-
     ) {
-
-        rooms[currentRoom].rewardDropped = true;
+        rooms[currentRoom].rewardDropped =
+            true;
 
         dropFullHeart(
-
             enemy.x + 15,
-
             enemy.y + 10
         );
 
         return;
     }
 
-
-    // ============================================================
-    // CONSULTORIO: DOCTOR
-    // ============================================================
-
     if (
-
-        isCurrentRoomType("doctor") &&
-
-        enemy.type === "doctor"
-
+        rooms[currentRoom].keyReward &&
+        enemies.length === 0 &&
+        !rooms[currentRoom].rewardDropped
     ) {
+        rooms[currentRoom].rewardDropped =
+            true;
 
         dropKey(
-
             enemy.x + 10,
-
-            enemy.y + 10
-        );
-
-        dropHalfHeart(
-
-            enemy.x + 35,
-
             enemy.y + 10
         );
 
         return;
     }
 
-
-    // ============================================================
-    // PUESTO DEL CELADOR
-    // ============================================================
-
     if (
-
-        isCurrentRoomType("securityIntroduction") &&
-
-        enemy.type === "securityGuard"
-
+        isCurrentRoomType(
+            "doctor"
+        ) &&
+        enemy.type === "doctor"
     ) {
+        dropKey(
+            enemy.x + 10,
+            enemy.y + 10
+        );
 
         dropHalfHeart(
+            enemy.x + 35,
+            enemy.y + 10
+        );
 
+        return;
+    }
+
+    if (
+        isCurrentRoomType(
+            "securityIntroduction"
+        ) &&
+        enemy.type === "securityGuard"
+    ) {
+        dropHalfHeart(
             enemy.x + 5,
-
             enemy.y + 10
         );
 
         dropBoomerang(
-
             enemy.x + 35,
-
             enemy.y + 10
         );
 
         return;
     }
 
-
-    // ============================================================
-    // TRAUMATÓLOGO Y DIRECTOR
-    // ============================================================
-
     const grantsFullHeart =
-
         (
-            isCurrentRoomType("trauma") &&
-
+            isCurrentRoomType(
+                "trauma"
+            ) &&
             enemy.type === "traumatologist"
-        )
-
-        ||
-
+        ) ||
         (
-            isCurrentRoomType("director") &&
-
+            isCurrentRoomType(
+                "director"
+            ) &&
             enemy.type === "director"
         );
 
-
     if (grantsFullHeart) {
-
         dropKey(
-
             enemy.x + 5,
-
             enemy.y + 10
         );
 
         dropFullHeart(
-
             enemy.x + 35,
-
             enemy.y + 10
         );
     }
