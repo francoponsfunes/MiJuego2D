@@ -2,58 +2,423 @@
 // COLLISIONS.JS
 // Colisiones, recompensas y reacciones de los enemigos.
 // ============================================================================
+function usesCircularHitbox(entity) {
 
-function areEntitiesColliding(first, second) {
-    return (
-        first.x < second.x + second.width &&
-        first.x + first.width > second.x &&
-        first.y < second.y + second.height &&
-        first.y + first.height > second.y
+    return Boolean(
+        entity &&
+        entity.hitboxShape === "circle"
     );
 }
 
-function getEntityOverlap(first, second, scale = 1) {
-    const dx =
-        second.x + second.width / 2 -
-        first.x - first.width / 2;
 
-    const dy =
-        second.y + second.height / 2 -
-        first.y - first.height / 2;
+function getEntityCenter(entity) {
 
     return {
-        dx,
+        x:
+            entity.x +
+            entity.width / 2,
 
+        y:
+            entity.y +
+            entity.height / 2
+    };
+}
+
+
+function getEntityHitboxRadius(
+
+    entity,
+
+    scale = 1
+
+) {
+
+    if (
+        Number.isFinite(
+            entity.hitboxRadius
+        )
+    ) {
+        return (
+            entity.hitboxRadius *
+            scale
+        );
+    }
+
+    const radiusScale =
+        Number.isFinite(
+            entity.hitboxRadiusScale
+        )
+            ? entity.hitboxRadiusScale
+            : 0.40;
+
+    return (
+        Math.min(
+            entity.width,
+            entity.height
+        ) *
+        radiusScale *
+        scale
+    );
+}
+
+
+function areRectanglesColliding(
+
+    first,
+
+    second
+
+) {
+
+    return (
+        first.x <
+            second.x +
+            second.width &&
+
+        first.x +
+            first.width >
+            second.x &&
+
+        first.y <
+            second.y +
+            second.height &&
+
+        first.y +
+            first.height >
+            second.y
+    );
+}
+
+
+function areCirclesColliding(
+
+    first,
+
+    second
+
+) {
+
+    const firstCenter =
+        getEntityCenter(first);
+
+    const secondCenter =
+        getEntityCenter(second);
+
+    const dx =
+        secondCenter.x -
+        firstCenter.x;
+
+    const dy =
+        secondCenter.y -
+        firstCenter.y;
+
+    const combinedRadius =
+        getEntityHitboxRadius(first) +
+        getEntityHitboxRadius(second);
+
+    return (
+        dx * dx +
+        dy * dy <=
+        combinedRadius *
+        combinedRadius
+    );
+}
+
+
+function isCircleCollidingWithRectangle(
+
+    circle,
+
+    rectangle
+
+) {
+
+    const circleCenter =
+        getEntityCenter(circle);
+
+    const closestX =
+        Math.max(
+            rectangle.x,
+
+            Math.min(
+                circleCenter.x,
+
+                rectangle.x +
+                rectangle.width
+            )
+        );
+
+    const closestY =
+        Math.max(
+            rectangle.y,
+
+            Math.min(
+                circleCenter.y,
+
+                rectangle.y +
+                rectangle.height
+            )
+        );
+
+    const dx =
+        circleCenter.x -
+        closestX;
+
+    const dy =
+        circleCenter.y -
+        closestY;
+
+    const radius =
+        getEntityHitboxRadius(
+            circle
+        );
+
+    return (
+        dx * dx +
+        dy * dy <=
+        radius *
+        radius
+    );
+}
+
+
+function areEntitiesColliding(
+
+    first,
+
+    second
+
+) {
+
+    const firstIsCircle =
+        usesCircularHitbox(first);
+
+    const secondIsCircle =
+        usesCircularHitbox(second);
+
+    if (
+        firstIsCircle &&
+        secondIsCircle
+    ) {
+        return areCirclesColliding(
+            first,
+            second
+        );
+    }
+
+    if (firstIsCircle) {
+        return isCircleCollidingWithRectangle(
+            first,
+            second
+        );
+    }
+
+    if (secondIsCircle) {
+        return isCircleCollidingWithRectangle(
+            second,
+            first
+        );
+    }
+
+    return areRectanglesColliding(
+        first,
+        second
+    );
+}
+
+
+function getEntityOverlap(
+
+    first,
+
+    second,
+
+    scale = 1
+
+) {
+
+    const firstCenter =
+        getEntityCenter(first);
+
+    const secondCenter =
+        getEntityCenter(second);
+
+    const dx =
+        secondCenter.x -
+        firstCenter.x;
+
+    const dy =
+        secondCenter.y -
+        firstCenter.y;
+
+    if (
+        usesCircularHitbox(first) &&
+        usesCircularHitbox(second)
+    ) {
+        const distance =
+            Math.hypot(
+                dx,
+                dy
+            );
+
+        const combinedRadius =
+            getEntityHitboxRadius(
+                first,
+                scale
+            ) +
+            getEntityHitboxRadius(
+                second,
+                scale
+            );
+
+        const penetration =
+            combinedRadius -
+            distance;
+
+        return {
+            circular: true,
+
+            dx,
+            dy,
+
+            distance,
+            penetration,
+
+            normalX:
+                distance > 0
+                    ? dx / distance
+                    : 1,
+
+            normalY:
+                distance > 0
+                    ? dy / distance
+                    : 0,
+
+            overlapX:
+                penetration,
+
+            overlapY:
+                penetration
+        };
+    }
+
+    return {
+        circular: false,
+
+        dx,
         dy,
 
         overlapX:
-            first.width * scale / 2 +
-            second.width * scale / 2 -
+            first.width *
+            scale / 2 +
+
+            second.width *
+            scale / 2 -
+
             Math.abs(dx),
 
         overlapY:
-            first.height * scale / 2 +
-            second.height * scale / 2 -
+            first.height *
+            scale / 2 +
+
+            second.height *
+            scale / 2 -
+
             Math.abs(dy)
     };
 }
 
+
 function separateEntities(
+
     first,
+
     second,
+
     overlap,
+
     forcedFirst = false,
+
     forcedSecond = false,
+
     includeZero = true
+
 ) {
+
+    if (overlap.circular) {
+
+        const amount =
+            overlap.penetration;
+
+        if (amount <= 0) {
+            return;
+        }
+
+        if (
+            forcedFirst &&
+            !forcedSecond
+        ) {
+            second.x +=
+                overlap.normalX *
+                amount;
+
+            second.y +=
+                overlap.normalY *
+                amount;
+
+            return;
+        }
+
+        if (
+            forcedSecond &&
+            !forcedFirst
+        ) {
+            first.x -=
+                overlap.normalX *
+                amount;
+
+            first.y -=
+                overlap.normalY *
+                amount;
+
+            return;
+        }
+
+        const push =
+            amount / 2;
+
+        first.x -=
+            overlap.normalX *
+            push;
+
+        first.y -=
+            overlap.normalY *
+            push;
+
+        second.x +=
+            overlap.normalX *
+            push;
+
+        second.y +=
+            overlap.normalY *
+            push;
+
+        return;
+    }
+
     const horizontal =
-        overlap.overlapX < overlap.overlapY;
+        overlap.overlapX <
+        overlap.overlapY;
 
     const axis =
-        horizontal ? "x" : "y";
+        horizontal
+            ? "x"
+            : "y";
 
     const distance =
-        horizontal ? overlap.dx : overlap.dy;
+        horizontal
+            ? overlap.dx
+            : overlap.dy;
 
     const amount =
         horizontal
@@ -69,20 +434,38 @@ function separateEntities(
                 ? 1
                 : -1;
 
-    if (forcedFirst && !forcedSecond) {
-        second[axis] += amount * direction;
+    if (
+        forcedFirst &&
+        !forcedSecond
+    ) {
+        second[axis] +=
+            amount *
+            direction;
+
         return;
     }
 
-    if (forcedSecond && !forcedFirst) {
-        first[axis] -= amount * direction;
+    if (
+        forcedSecond &&
+        !forcedFirst
+    ) {
+        first[axis] -=
+            amount *
+            direction;
+
         return;
     }
 
-    const push = amount / 2;
+    const push =
+        amount / 2;
 
-    first[axis] -= push * direction;
-    second[axis] += push * direction;
+    first[axis] -=
+        push *
+        direction;
+
+    second[axis] +=
+        push *
+        direction;
 }
 function dropDefeatedEnemyRewards(enemy) {
     if (
@@ -240,6 +623,7 @@ function isSecurityGuardBlockingBullet(
     return frontalImpact >= 0.38;
 }
 function checkBulletCollisions() {
+
     for (
         let bulletIndex =
             bullets.length - 1;
@@ -252,7 +636,8 @@ function checkBulletCollisions() {
             bullets[bulletIndex];
 
         const isBoomerang =
-            bullet.type === "boomerang";
+            bullet.type ===
+            "boomerang";
 
         for (
             let enemyIndex =
@@ -320,9 +705,18 @@ function checkBulletCollisions() {
                 break;
             }
 
-            enemy.health -= isBoomerang
-                ? bullet.damage
-                : 1;
+            const bulletDamage =
+                Number.isFinite(
+                    bullet.damage
+                )
+                    ? bullet.damage
+
+                    : isBoomerang
+                        ? 2
+                        : 1;
+
+            enemy.health -=
+                bulletDamage;
 
             if (isBoomerang) {
                 bullet.hitEnemies.add(
@@ -372,10 +766,11 @@ function checkBulletCollisions() {
                         "boss"
                     ) &&
                     enemies.length === 0 &&
-                    !rooms[currentRoom].cleared
+                    !rooms[currentRoom]
+                        .cleared
                 ) {
-                    rooms[currentRoom].cleared =
-                        true;
+                    rooms[currentRoom]
+                        .cleared = true;
                 }
             }
 
@@ -411,14 +806,22 @@ function isEnemyMovementForced(enemy) {
     );
 }
 function resolveEnemyCollisions() {
+
     for (
         let firstIndex = 0;
-        firstIndex < enemies.length;
+
+        firstIndex <
+        enemies.length;
+
         firstIndex++
     ) {
         for (
-            let secondIndex = firstIndex + 1;
-            secondIndex < enemies.length;
+            let secondIndex =
+                firstIndex + 1;
+
+            secondIndex <
+            enemies.length;
+
             secondIndex++
         ) {
             const first =
@@ -430,13 +833,11 @@ function resolveEnemyCollisions() {
             const overlap =
                 getEntityOverlap(
                     first,
-                    second,
-                    0.8
+                    second
                 );
 
             if (
-                overlap.overlapX <= 0 ||
-                overlap.overlapY <= 0
+                overlap.penetration <= 0
             ) {
                 continue;
             }
@@ -445,13 +846,16 @@ function resolveEnemyCollisions() {
                 first,
                 second,
                 overlap,
-                isEnemyMovementForced(first),
-                isEnemyMovementForced(second)
+                isEnemyMovementForced(
+                    first
+                ),
+                isEnemyMovementForced(
+                    second
+                )
             );
         }
     }
 }
-
 function resolveDroppedItemCollisions() {
     const items = [
         ...droppedKeys,
@@ -592,11 +996,16 @@ function isCommittedEnemyAttack(enemy) {
     return false;
 }
 function applyEnemyKnockback(
+
     enemy,
+
     bullet
+
 ) {
+
     const committedStretcherAttack =
-        enemy.type === "stretcherBearer" &&
+        enemy.type ===
+            "stretcherBearer" &&
         [
             "windup",
             "charge"
@@ -606,7 +1015,8 @@ function applyEnemyKnockback(
 
     const committedSecurityAttack =
         (
-            enemy.type === "securityGuard" &&
+            enemy.type ===
+                "securityGuard" &&
             [
                 "windup",
                 "bash"
@@ -615,7 +1025,8 @@ function applyEnemyKnockback(
             )
         ) ||
         (
-            enemy.type === "aggressiveNurse" &&
+            enemy.type ===
+                "aggressiveNurse" &&
             enemy.securityEscort &&
             [
                 "windup",
@@ -626,27 +1037,67 @@ function applyEnemyKnockback(
         );
 
     if (
-        isCommittedEnemyAttack(enemy) ||
+        isCommittedEnemyAttack(
+            enemy
+        ) ||
         committedStretcherAttack ||
         committedSecurityAttack
     ) {
         return;
     }
 
-    const direction =
+    const cardinalDirection =
         PROJECTILE_DIRECTIONS[
             bullet.direction
         ];
 
-    if (!direction) {
+    const directionX =
+        Number.isFinite(
+            bullet.vx
+        )
+            ? bullet.vx
+
+            : cardinalDirection
+                ? cardinalDirection.x
+                : 0;
+
+    const directionY =
+        Number.isFinite(
+            bullet.vy
+        )
+            ? bullet.vy
+
+            : cardinalDirection
+                ? cardinalDirection.y
+                : 0;
+
+    const directionLength =
+        Math.hypot(
+            directionX,
+            directionY
+        );
+
+    if (
+        directionLength === 0
+    ) {
         return;
     }
 
+    const force =
+        getPlayerKnockbackForce(
+            8,
+            bullet
+        );
+
     enemy.knockbackX =
-        direction.x * 8;
+        directionX /
+        directionLength *
+        force;
 
     enemy.knockbackY =
-        direction.y * 8;
+        directionY /
+        directionLength *
+        force;
 }
 function handleAnesthesiologistContact(
     enemy,

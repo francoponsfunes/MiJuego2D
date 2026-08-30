@@ -22,13 +22,14 @@ const PLAYER_SHOOT_DIRECTIONS = [
 
 const keys = {};
 
-const shootCooldown = 250;
+const shootCooldown = 400;
 
 let playerMaxHealth = 3;
 let playerHealth = playerMaxHealth;
 
 let movementDisabledUntil = 0;
 let invulnerableUntil = 0;
+let contactInvulnerableUntil = 0;
 
 let playerKnockbackX = 0;
 let playerKnockbackY = 0;
@@ -93,71 +94,75 @@ document.addEventListener("keyup", (event) => {
 // ============================================================================
 // DISPAROS
 // ============================================================================
-
 function shoot(direction) {
 
     if (
         !PLAYER_SHOOT_DIRECTIONS.includes(direction)
     ) {
-
         return false;
     }
 
     shootingDirection = direction;
-
     player.aimDirection = direction;
 
     if (
         gameOver ||
-        victory
+        victory ||
+        upgradeSelectionOpen
     ) {
-
         return false;
     }
 
     const now = performance.now();
 
-    if (
-        now < nextShotTime
-    ) {
-
+    if (now < nextShotTime) {
         return false;
     }
 
-    bullets.push({
+    const bulletSize =
+        getPlayerProjectileSize(10);
 
+    const currentShootCooldown =
+        getPlayerShootCooldown(
+            shootCooldown
+        );
+
+    bullets.push({
         x:
             player.x +
             player.width / 2 -
-            5,
+            bulletSize / 2,
 
         y:
             player.y +
             player.height / 2 -
-            5,
+            bulletSize / 2,
 
-        width: 10,
+        width: bulletSize,
+        height: bulletSize,
 
-        height: 10,
+        speed:
+            getPlayerProjectileSpeed(7),
 
-        speed: 7,
+        damage:
+            getPlayerBulletDamage(1),
 
         direction
     });
 
     nextShotTime =
-
         nextShotTime > 0 &&
-        now - nextShotTime < shootCooldown
+        now - nextShotTime <
+            currentShootCooldown
 
-            ? nextShotTime + shootCooldown
+            ? nextShotTime +
+                currentShootCooldown
 
-            : now + shootCooldown;
+            : now +
+                currentShootCooldown;
 
     return true;
 }
-
-
 function updatePlayerShooting() {
 
     if (
@@ -203,61 +208,56 @@ function updatePlayerShooting() {
 // ============================================================================
 // MOVIMIENTO Y KNOCKBACK
 // ============================================================================
-
 function updatePlayer(deltaTime = 1) {
 
-    const movementDisabled =
-
-        performance.now() <
-
-        movementDisabledUntil;
+    const now =
+        performance.now();
 
     if (
-        !movementDisabled
+        now <
+        movementDisabledUntil
     ) {
+        const stunMultiplier =
+            getPlayerStunDurationMultiplier();
+
+        movementDisabledUntil -=
+            16.67 *
+            deltaTime *
+            (
+                1 /
+                stunMultiplier -
+                1
+            );
+    }
+
+    const movementDisabled =
+        now <
+        movementDisabledUntil;
+
+    if (!movementDisabled) {
 
         const movementX =
-
-            Number(
-                Boolean(keys.d)
-            ) -
-
-            Number(
-                Boolean(keys.a)
-            );
+            Number(Boolean(keys.d)) -
+            Number(Boolean(keys.a));
 
         const movementY =
-
-            Number(
-                Boolean(keys.s)
-            ) -
-
-            Number(
-                Boolean(keys.w)
-            );
+            Number(Boolean(keys.s)) -
+            Number(Boolean(keys.w));
 
         const movementLength =
             Math.hypot(
-
                 movementX,
-
                 movementY
             );
 
-        if (
-            movementLength > 0
-        ) {
+        if (movementLength > 0) {
 
             const directionX =
-
                 movementX /
-
                 movementLength;
 
             const directionY =
-
                 movementY /
-
                 movementLength;
 
             player.boomerangAimX =
@@ -267,103 +267,77 @@ function updatePlayer(deltaTime = 1) {
                 directionY;
 
             const shootingKeyPressed =
-
                 shootingDirection &&
-
                 keys[
-                    shootingDirection.toLowerCase()
+                    shootingDirection
+                        .toLowerCase()
                 ];
 
-            if (
-                !shootingKeyPressed
-            ) {
+            if (!shootingKeyPressed) {
 
                 const currentDirectionMatchesMovement =
-
                     (
-                        player.aimDirection === "ArrowLeft" &&
+                        player.aimDirection ===
+                            "ArrowLeft" &&
                         movementX < 0
                     ) ||
-
                     (
-                        player.aimDirection === "ArrowRight" &&
+                        player.aimDirection ===
+                            "ArrowRight" &&
                         movementX > 0
                     ) ||
-
                     (
-                        player.aimDirection === "ArrowUp" &&
+                        player.aimDirection ===
+                            "ArrowUp" &&
                         movementY < 0
                     ) ||
-
                     (
-                        player.aimDirection === "ArrowDown" &&
+                        player.aimDirection ===
+                            "ArrowDown" &&
                         movementY > 0
                     );
 
                 if (
                     !currentDirectionMatchesMovement
                 ) {
-
                     player.aimDirection =
-
                         movementX !== 0
-
                             ? movementX > 0
-
                                 ? "ArrowRight"
-
                                 : "ArrowLeft"
-
                             : movementY > 0
-
                                 ? "ArrowDown"
-
                                 : "ArrowUp";
                 }
             }
 
             const movementSpeed =
-
                 player.speed *
-
                 PLAYER_SPEED_MULTIPLIER *
-
+                getPlayerMovementMultiplier() *
                 deltaTime;
 
             player.x +=
-
                 directionX *
-
                 movementSpeed;
 
             player.y +=
-
                 directionY *
-
                 movementSpeed;
         }
     }
 
-
-    // Aplicar retroceso.
-
     player.x +=
-
         playerKnockbackX *
-
         deltaTime;
 
     player.y +=
-
         playerKnockbackY *
-
         deltaTime;
 
     const damping =
         Math.pow(
-
             0.82,
-
             deltaTime
         );
 
@@ -374,84 +348,63 @@ function updatePlayer(deltaTime = 1) {
         damping;
 
     if (
-
         Math.abs(
             playerKnockbackX
         ) < 0.05
-
     ) {
-
         playerKnockbackX = 0;
     }
 
     if (
-
         Math.abs(
             playerKnockbackY
         ) < 0.05
-
     ) {
-
         playerKnockbackY = 0;
     }
 
-
-    // Mantener al jugador dentro de la sala.
-
     const limitedX =
         Math.max(
-
             0,
-
             Math.min(
-
                 canvas.width -
-                player.width,
-
+                    player.width,
                 player.x
             )
         );
 
     const limitedY =
         Math.max(
-
             0,
-
             Math.min(
-
                 canvas.height -
-                player.height,
-
+                    player.height,
                 player.y
             )
         );
 
     if (
-        limitedX !== player.x
+        limitedX !==
+        player.x
     ) {
-
         player.x =
             limitedX;
 
-        playerKnockbackX =
-            0;
+        playerKnockbackX = 0;
     }
 
     if (
-        limitedY !== player.y
+        limitedY !==
+        player.y
     ) {
-
         player.y =
             limitedY;
 
-        playerKnockbackY =
-            0;
+        playerKnockbackY = 0;
     }
 
     updatePlayerShooting();
 }
-
-
 // ============================================================================
 // DIBUJAR JUGADOR
 // ============================================================================
@@ -649,36 +602,58 @@ function applyPlayerKnockback(
 // ============================================================================
 // DAÑO PROVOCADO POR UN ENEMIGO
 // ============================================================================
-
 function damagePlayerFromEntity(
 
     amount,
 
     entity,
 
-    knockbackForce = 7
+    knockbackForce = 7,
+
+    damageType = "contact"
 
 ) {
 
-    damagePlayer(
+    const now =
+        performance.now();
 
-        amount,
+    if (
+        damageType === "contact" &&
+        now <
+        contactInvulnerableUntil
+    ) {
+        return false;
+    }
 
-        entity.x +
-        entity.width / 2,
+    const damaged =
+        damagePlayer(
+            amount,
 
-        entity.y +
-        entity.height / 2,
+            entity.x +
+                entity.width / 2,
 
-        knockbackForce
-    );
+            entity.y +
+                entity.height / 2,
+
+            knockbackForce
+        );
+
+    if (
+        damaged &&
+        damageType === "contact"
+    ) {
+        contactInvulnerableUntil =
+            now +
+            getPlayerContactProtectionDuration(
+                600
+            );
+    }
+
+    return damaged;
 }
-
-
 // ============================================================================
 // DAÑO DEL JUGADOR
 // ============================================================================
-
 function damagePlayer(
 
     amount,
@@ -692,51 +667,39 @@ function damagePlayer(
 ) {
 
     if (
-
         gameOver ||
-
         victory ||
-
         performance.now() <
             invulnerableUntil
-
     ) {
-
         return false;
     }
 
     playerHealth =
         Math.max(
-
             0,
-
             playerHealth -
-            amount
+                amount
         );
 
     if (
         playerHealth === 0
     ) {
-
         gameOver = true;
-
         victory = false;
 
         return true;
     }
 
     invulnerableUntil =
-
         performance.now() +
-
-        600;
+        getPlayerInvulnerabilityDuration(
+            600
+        );
 
     applyPlayerKnockback(
-
         sourceX,
-
         sourceY,
-
         knockbackForce
     );
 

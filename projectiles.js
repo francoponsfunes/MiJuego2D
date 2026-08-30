@@ -35,26 +35,55 @@ function updateLinearProjectiles(projectiles, deltaTime, margin) {
         }
     }
 }
+function checkProjectilePlayerCollisions(
+    projectiles
+) {
 
-function checkProjectilePlayerCollisions(projectiles) {
-    for (let index = projectiles.length - 1; index >= 0; index--) {
-        const projectile = projectiles[index];
+    for (
+        let index =
+            projectiles.length - 1;
+
+        index >= 0;
+
+        index--
+    ) {
+        const projectile =
+            projectiles[index];
 
         const colliding =
-            player.x < projectile.x + projectile.width &&
-            player.x + player.width > projectile.x &&
-            player.y < projectile.y + projectile.height &&
-            player.y + player.height > projectile.y;
+            player.x <
+                projectile.x +
+                projectile.width &&
+
+            player.x +
+                player.width >
+                projectile.x &&
+
+            player.y <
+                projectile.y +
+                projectile.height &&
+
+            player.y +
+                player.height >
+                projectile.y;
 
         if (!colliding) {
             continue;
         }
 
-        damagePlayerFromEntity(0.5, projectile);
-        projectiles.splice(index, 1);
+        damagePlayerFromEntity(
+            0.5,
+            projectile,
+            7,
+            "projectile"
+        );
+
+        projectiles.splice(
+            index,
+            1
+        );
     }
 }
-
 function drawRectProjectiles(projectiles) {
     projectiles.forEach((projectile) => {
         ctx.fillStyle = "white";
@@ -67,9 +96,14 @@ function drawRectProjectiles(projectiles) {
         );
     });
 }
-
 function launchBoomerang() {
-    if (gameOver || victory || playerBoomerangs <= 0) {
+
+    if (
+        gameOver ||
+        victory ||
+        upgradeSelectionOpen ||
+        playerBoomerangs <= 0
+    ) {
         return false;
     }
 
@@ -81,58 +115,113 @@ function launchBoomerang() {
         Number(Boolean(keys.s)) -
         Number(Boolean(keys.w));
 
-    if (aimX === 0 && aimY === 0) {
+    if (
+        aimX === 0 &&
+        aimY === 0
+    ) {
         const shootingX =
-            Number(Boolean(keys.arrowright)) -
-            Number(Boolean(keys.arrowleft));
+            Number(
+                Boolean(
+                    keys.arrowright
+                )
+            ) -
+            Number(
+                Boolean(
+                    keys.arrowleft
+                )
+            );
 
         const shootingY =
-            Number(Boolean(keys.arrowdown)) -
-            Number(Boolean(keys.arrowup));
+            Number(
+                Boolean(
+                    keys.arrowdown
+                )
+            ) -
+            Number(
+                Boolean(
+                    keys.arrowup
+                )
+            );
 
-        if (shootingX !== 0 || shootingY !== 0) {
-            aimX = shootingX;
-            aimY = shootingY;
+        if (
+            shootingX !== 0 ||
+            shootingY !== 0
+        ) {
+            aimX =
+                shootingX;
+
+            aimY =
+                shootingY;
 
         } else if (
-            Number.isFinite(player.boomerangAimX) &&
-            Number.isFinite(player.boomerangAimY) &&
+            Number.isFinite(
+                player.boomerangAimX
+            ) &&
+            Number.isFinite(
+                player.boomerangAimY
+            ) &&
             (
                 player.boomerangAimX !== 0 ||
                 player.boomerangAimY !== 0
             )
         ) {
-            aimX = player.boomerangAimX;
-            aimY = player.boomerangAimY;
+            aimX =
+                player.boomerangAimX;
+
+            aimY =
+                player.boomerangAimY;
 
         } else {
             const fallbackAim =
-                PROJECTILE_DIRECTIONS[player.aimDirection] ||
-                PROJECTILE_DIRECTIONS[shootingDirection] ||
-                PROJECTILE_DIRECTIONS.ArrowUp;
+                PROJECTILE_DIRECTIONS[
+                    player.aimDirection
+                ] ||
+                PROJECTILE_DIRECTIONS[
+                    shootingDirection
+                ] ||
+                PROJECTILE_DIRECTIONS
+                    .ArrowUp;
 
-            aimX = fallbackAim.x;
-            aimY = fallbackAim.y;
+            aimX =
+                fallbackAim.x;
+
+            aimY =
+                fallbackAim.y;
         }
     }
 
-    const aimLength = Math.hypot(aimX, aimY);
+    const aimLength =
+        Math.hypot(
+            aimX,
+            aimY
+        );
 
-    if (aimLength === 0) {
+    if (
+        aimLength === 0
+    ) {
         return false;
     }
 
-    aimX /= aimLength;
-    aimY /= aimLength;
+    aimX /=
+        aimLength;
 
-    player.boomerangAimX = aimX;
-    player.boomerangAimY = aimY;
+    aimY /=
+        aimLength;
+
+    player.boomerangAimX =
+        aimX;
+
+    player.boomerangAimY =
+        aimY;
 
     const direction =
-        Math.abs(aimX) >= Math.abs(aimY)
+        Math.abs(aimX) >=
+        Math.abs(aimY)
+
             ? aimX >= 0
                 ? "ArrowRight"
                 : "ArrowLeft"
+
             : aimY >= 0
                 ? "ArrowDown"
                 : "ArrowUp";
@@ -143,8 +232,15 @@ function launchBoomerang() {
     bullets.push({
         type: "boomerang",
 
-        x: player.x + player.width / 2 - size / 2,
-        y: player.y + player.height / 2 - size / 2,
+        x:
+            player.x +
+            player.width / 2 -
+            size / 2,
+
+        y:
+            player.y +
+            player.height / 2 -
+            size / 2,
 
         width: size,
         height: size,
@@ -152,25 +248,36 @@ function launchBoomerang() {
         speed,
         direction,
 
-        vx: aimX * speed,
-        vy: aimY * speed,
+        vx:
+            aimX *
+            speed,
+
+        vy:
+            aimY *
+            speed,
 
         damage: 2,
 
         bounces: 0,
-        maxBounces: 2,
+
+        maxBounces:
+            getPlayerBoomerangMaxBounces(
+                2
+            ),
 
         rotation: 0,
 
-        hitEnemies: new Set(),
-        hitBoss: false
+        hitEnemies:
+            new Set(),
+
+        hitBoss:
+            false
     });
 
     playerBoomerangs--;
 
     return true;
 }
-
 function updateBullets(deltaTime = 1) {
     for (let index = bullets.length - 1; index >= 0; index--) {
         const bullet = bullets[index];

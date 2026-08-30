@@ -1922,8 +1922,8 @@ function resetRoomsForNewRun() {
 
     pharmacyUnlockNoticeUntil = 0;
 }
-
 function advanceToNextLevel() {
+
     const nextLevel =
         currentLevel + 1;
 
@@ -1944,6 +1944,7 @@ function advanceToNextLevel() {
         droppedBossItems,
         droppedBrightHearts
     ].forEach((collection) => {
+
         collection.length = 0;
     });
 
@@ -1974,6 +1975,14 @@ function advanceToNextLevel() {
 
     movementDisabledUntil = 0;
 
+    invulnerableUntil = 0;
+
+    contactInvulnerableUntil = 0;
+
+    nextShotTime = 0;
+
+    shootingDirection = null;
+
     player.x =
         canvas.width / 2 -
         player.width / 2;
@@ -1982,28 +1991,51 @@ function advanceToNextLevel() {
         canvas.height / 2 -
         player.height / 2;
 
-    Object.assign(boss, {
-        active: false,
-        defeated: false,
-        touchingPlayer: false,
-        health: boss.maxHealth,
-        phase: 1,
-        spawned75: false,
-        spawned50: false,
-        spawned25: false,
-        assistantCommandTimer: 90,
-        assistantTurn: 0,
-        anesthesiaImmunityUntil: 0,
-        attackSequence: 0,
-        dashDuration: 0,
-        enraged: false
-    });
+    Object.assign(
+        boss,
+        {
+            active: false,
 
-    rooms[currentRoom].visited = true;
+            defeated: false,
+
+            touchingPlayer: false,
+
+            health:
+                boss.maxHealth,
+
+            phase: 1,
+
+            spawned75: false,
+
+            spawned50: false,
+
+            spawned25: false,
+
+            assistantCommandTimer:
+                90,
+
+            assistantTurn:
+                0,
+
+            anesthesiaImmunityUntil:
+                0,
+
+            attackSequence:
+                0,
+
+            dashDuration:
+                0,
+
+            enraged:
+                false
+        }
+    );
+
+    rooms[currentRoom]
+        .visited = true;
 
     return true;
 }
-
 function checkRoomClear() {
     const room =
         rooms[currentRoom];

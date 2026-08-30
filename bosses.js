@@ -2,13 +2,15 @@
 // BOSSES.JS
 // Estado, fases, patrones, asistentes y recompensas del jefe.
 // ============================================================================
-
 const boss = {
     x: 0,
     y: 0,
 
     width: 80,
     height: 80,
+
+    hitboxShape: "circle",
+    hitboxRadiusScale: 0.42,
 
     speed: 1.2,
 
@@ -44,7 +46,6 @@ const boss = {
 
     enraged: false
 };
-
 const BOSS_PHASE_SETTINGS = {
     1: {
         movementSpeed: 1.45,
@@ -797,8 +798,8 @@ function defeatBoss() {
             3500;
     }
 }
-
 function checkBossCollision() {
+
     if (
         !boss.active ||
         boss.defeated
@@ -807,8 +808,11 @@ function checkBossCollision() {
     }
 
     for (
-        let index = bullets.length - 1;
+        let index =
+            bullets.length - 1;
+
         index >= 0;
+
         index--
     ) {
         const bullet =
@@ -823,7 +827,6 @@ function checkBossCollision() {
                 isBoomerang &&
                 bullet.hitBoss
             ) ||
-
             !areEntitiesColliding(
                 bullet,
                 boss
@@ -832,14 +835,20 @@ function checkBossCollision() {
             continue;
         }
 
-        boss.health -=
-            isBoomerang
+        const bulletDamage =
+            Number.isFinite(
+                bullet.damage
+            )
                 ? bullet.damage
-                : 1;
 
-        if (
-            isBoomerang
-        ) {
+                : isBoomerang
+                    ? 2
+                    : 1;
+
+        boss.health -=
+            bulletDamage;
+
+        if (isBoomerang) {
             bullet.hitBoss =
                 true;
 
@@ -859,7 +868,6 @@ function checkBossCollision() {
         }
     }
 }
-
 function showVictory() {
     victory =
         true;

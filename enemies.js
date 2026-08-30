@@ -29,13 +29,20 @@ const enemies = [];
 
 // Creación y configuración de enemigos.
 function createEnemy(config) {
+
     return {
         width: 40,
         height: 40,
+
+        hitboxShape: "circle",
+        hitboxRadiusScale: 0.40,
+
         touchingPlayer: false,
+
         knockbackResistance: 1,
         knockbackX: 0,
         knockbackY: 0,
+
         ...config
     };
 }

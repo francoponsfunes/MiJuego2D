@@ -13,17 +13,17 @@ function getElevatorBounds() {
         height: 130
     };
 }
-
 function canUseElevator() {
+
     return Boolean(
         isCurrentRoomType("boss") &&
         isBossDefeated() &&
         playerAccessCards > 0 &&
         !gameOver &&
-        !victory
+        !victory &&
+        !upgradeSelectionOpen
     );
 }
-
 function isPlayerNearElevator() {
     if (
         !isCurrentRoomType("boss")
@@ -370,8 +370,8 @@ function getElevatorDialogButtons() {
         }
     };
 }
-
 function openElevatorDialog() {
+
     if (
         !canUseElevator() ||
         !isPlayerNearElevator()
@@ -379,12 +379,24 @@ function openElevatorDialog() {
         return false;
     }
 
-    elevatorDialogOpen =
-        true;
+    elevatorDialogOpen = true;
+
+    return true;
+}
+
+
+function closeElevatorDialog() {
+
+    if (!elevatorDialogOpen) {
+        return false;
+    }
+
+    elevatorDialogOpen = false;
 
     return true;
 }
 function confirmElevatorAscent() {
+
     if (
         !elevatorDialogOpen ||
         !canUseElevator() ||
@@ -393,15 +405,17 @@ function confirmElevatorAscent() {
         return false;
     }
 
-    if (!levelConfigs[currentLevel + 1]) {
+    if (
+        !levelConfigs[
+            currentLevel + 1
+        ]
+    ) {
         return false;
     }
 
-    playerAccessCards--;
-
     elevatorDialogOpen = false;
 
-    return advanceToNextLevel();
+    return openPlayerUpgradeSelection();
 }
 function handleElevatorKeydown(
     event
