@@ -23,6 +23,9 @@ const PLAYER_SHOOT_DIRECTIONS = [
 const keys = {};
 
 const shootCooldown = 400;
+const PLAYER_DASH_SPEED = 10.5;
+const PLAYER_DASH_DURATION = 145;
+const PLAYER_DASH_COOLDOWN = 1150;
 
 let playerMaxHealth = 3;
 let playerHealth = playerMaxHealth;
@@ -37,34 +40,47 @@ let playerKnockbackY = 0;
 let nextShotTime = 0;
 let shootingDirection = null;
 
+let playerDashDirectionX = 0;
+let playerDashDirectionY = -1;
+
+let playerDashUntil = 0;
+let playerDashReadyAt = 0;
+let playerDashWasActive = false;
+
+let lastPlayerMovementX = 0;
+let lastPlayerMovementY = -1;
+
 
 // ============================================================================
 // CONTROLES
 // ============================================================================
-
 document.addEventListener("keydown", (event) => {
-
     keys[event.key.toLowerCase()] = true;
 
     if (
         event.key === "Enter" &&
         gameOver
     ) {
-
+        resetPlayerDash();
         restartGame();
 
         return;
     }
 
-    if (
-        event.code === "Space" ||
-        event.code === "ShiftRight"
-    ) {
-
+    if (event.code === "Space") {
         event.preventDefault();
 
         if (!event.repeat) {
+            tryStartPlayerDash();
+        }
 
+        return;
+    }
+
+    if (event.code === "ShiftRight") {
+        event.preventDefault();
+
+        if (!event.repeat) {
             launchBoomerang();
         }
 
@@ -72,25 +88,191 @@ document.addEventListener("keydown", (event) => {
     }
 
     if (
-        PLAYER_SHOOT_DIRECTIONS.includes(event.key)
+        PLAYER_SHOOT_DIRECTIONS.includes(
+            event.key
+        )
     ) {
-
         event.preventDefault();
 
         if (!gameOver) {
-
             shoot(event.key);
         }
     }
 });
+function getPlayerMovementInput() {
+    const movementX =
+        Number(Boolean(keys.d)) -
+        Number(Boolean(keys.a));
+
+    const movementY =
+        Number(Boolean(keys.s)) -
+        Number(Boolean(keys.w));
+
+    const movementLength =
+        Math.hypot(
+            movementX,
+            movementY
+        );
+
+    if (movementLength === 0) {
+        return {
+            x: 0,
+            y: 0,
+            moving: false
+        };
+    }
+
+    return {
+        x: movementX / movementLength,
+        y: movementY / movementLength,
+        moving: true
+    };
+}
 
 
-document.addEventListener("keyup", (event) => {
+function isPlayerDashing(
+    now = performance.now()
+) {
+    return now < playerDashUntil;
+}
 
-    keys[event.key.toLowerCase()] = false;
-});
+
+function clearPlayerContactFlags() {
+    if (
+        typeof enemies !== "undefined"
+    ) {
+        enemies.forEach((enemy) => {
+            enemy.touchingPlayer = false;
+        });
+    }
+
+    if (
+        typeof boss !== "undefined"
+    ) {
+        boss.touchingPlayer = false;
+    }
+}
 
 
+function resetPlayerDash() {
+    playerDashDirectionX = 0;
+    playerDashDirectionY = -1;
+
+    playerDashUntil = 0;
+    playerDashReadyAt = 0;
+    playerDashWasActive = false;
+
+    lastPlayerMovementX = 0;
+    lastPlayerMovementY = -1;
+
+    clearPlayerContactFlags();
+}
+
+
+function tryStartPlayerDash() {
+    const now =
+        performance.now();
+
+    const dialogOpen =
+        typeof elevatorDialogOpen !==
+            "undefined" &&
+        elevatorDialogOpen;
+
+    if (
+        gameOver ||
+        victory ||
+        upgradeSelectionOpen ||
+        dialogOpen ||
+        now < movementDisabledUntil ||
+        now < playerDashReadyAt ||
+        isPlayerDashing(now)
+    ) {
+        return false;
+    }
+
+    const movement =
+        getPlayerMovementInput();
+
+    const directionX =
+        movement.moving
+            ? movement.x
+            : lastPlayerMovementX;
+
+    const directionY =
+        movement.moving
+            ? movement.y
+            : lastPlayerMovementY;
+
+    const directionLength =
+        Math.hypot(
+            directionX,
+            directionY
+        ) || 1;
+
+    playerDashDirectionX =
+        directionX / directionLength;
+
+    playerDashDirectionY =
+        directionY / directionLength;
+
+    lastPlayerMovementX =
+        playerDashDirectionX;
+
+    lastPlayerMovementY =
+        playerDashDirectionY;
+
+    player.boomerangAimX =
+        playerDashDirectionX;
+
+    player.boomerangAimY =
+        playerDashDirectionY;
+
+    playerDashUntil =
+        now + PLAYER_DASH_DURATION;
+
+    playerDashReadyAt =
+        now + PLAYER_DASH_COOLDOWN;
+
+    playerDashWasActive = true;
+
+    playerKnockbackX = 0;
+    playerKnockbackY = 0;
+
+    invulnerableUntil =
+        Math.max(
+            invulnerableUntil,
+            playerDashUntil
+        );
+
+    clearPlayerContactFlags();
+
+    return true;
+}
+
+
+function getPlayerDashCooldownProgress(
+    now = performance.now()
+) {
+    if (now >= playerDashReadyAt) {
+        return 1;
+    }
+
+    const cooldownStartedAt =
+        playerDashReadyAt -
+        PLAYER_DASH_COOLDOWN;
+
+    return Math.max(
+        0,
+        Math.min(
+            1,
+            (
+                now -
+                cooldownStartedAt
+            ) /
+            PLAYER_DASH_COOLDOWN
+        )
+    );
+}
 // ============================================================================
 // DISPAROS
 // ============================================================================
@@ -209,13 +391,11 @@ function updatePlayerShooting() {
 // MOVIMIENTO Y KNOCKBACK
 // ============================================================================
 function updatePlayer(deltaTime = 1) {
-
     const now =
         performance.now();
 
     if (
-        now <
-        movementDisabledUntil
+        now < movementDisabledUntil
     ) {
         const stunMultiplier =
             getPlayerStunDurationMultiplier();
@@ -224,41 +404,58 @@ function updatePlayer(deltaTime = 1) {
             16.67 *
             deltaTime *
             (
-                1 /
-                stunMultiplier -
+                1 / stunMultiplier -
                 1
             );
     }
 
     const movementDisabled =
-        now <
-        movementDisabledUntil;
+        now < movementDisabledUntil;
 
-    if (!movementDisabled) {
+    const dashActive =
+        isPlayerDashing(now);
 
-        const movementX =
-            Number(Boolean(keys.d)) -
-            Number(Boolean(keys.a));
+    if (
+        !dashActive &&
+        playerDashWasActive
+    ) {
+        playerDashWasActive = false;
 
-        const movementY =
-            Number(Boolean(keys.s)) -
-            Number(Boolean(keys.w));
+        clearPlayerContactFlags();
+    }
 
-        const movementLength =
-            Math.hypot(
-                movementX,
-                movementY
-            );
+    if (dashActive) {
+        const dashDistance =
+            PLAYER_DASH_SPEED *
+            deltaTime;
 
-        if (movementLength > 0) {
+        player.x +=
+            playerDashDirectionX *
+            dashDistance;
 
+        player.y +=
+            playerDashDirectionY *
+            dashDistance;
+
+        playerKnockbackX = 0;
+        playerKnockbackY = 0;
+
+    } else if (!movementDisabled) {
+        const movement =
+            getPlayerMovementInput();
+
+        if (movement.moving) {
             const directionX =
-                movementX /
-                movementLength;
+                movement.x;
 
             const directionY =
-                movementY /
-                movementLength;
+                movement.y;
+
+            lastPlayerMovementX =
+                directionX;
+
+            lastPlayerMovementY =
+                directionY;
 
             player.boomerangAimX =
                 directionX;
@@ -274,38 +471,39 @@ function updatePlayer(deltaTime = 1) {
                 ];
 
             if (!shootingKeyPressed) {
-
                 const currentDirectionMatchesMovement =
                     (
                         player.aimDirection ===
                             "ArrowLeft" &&
-                        movementX < 0
+                        directionX < 0
                     ) ||
                     (
                         player.aimDirection ===
                             "ArrowRight" &&
-                        movementX > 0
+                        directionX > 0
                     ) ||
                     (
                         player.aimDirection ===
                             "ArrowUp" &&
-                        movementY < 0
+                        directionY < 0
                     ) ||
                     (
                         player.aimDirection ===
                             "ArrowDown" &&
-                        movementY > 0
+                        directionY > 0
                     );
 
                 if (
                     !currentDirectionMatchesMovement
                 ) {
                     player.aimDirection =
-                        movementX !== 0
-                            ? movementX > 0
+                        directionX !== 0
+
+                            ? directionX > 0
                                 ? "ArrowRight"
                                 : "ArrowLeft"
-                            : movementY > 0
+
+                            : directionY > 0
                                 ? "ArrowDown"
                                 : "ArrowUp";
                 }
@@ -327,40 +525,42 @@ function updatePlayer(deltaTime = 1) {
         }
     }
 
-    player.x +=
-        playerKnockbackX *
-        deltaTime;
+    if (!dashActive) {
+        player.x +=
+            playerKnockbackX *
+            deltaTime;
 
-    player.y +=
-        playerKnockbackY *
-        deltaTime;
+        player.y +=
+            playerKnockbackY *
+            deltaTime;
 
-    const damping =
-        Math.pow(
-            0.82,
-            deltaTime
-        );
+        const damping =
+            Math.pow(
+                0.82,
+                deltaTime
+            );
 
-    playerKnockbackX *=
-        damping;
+        playerKnockbackX *=
+            damping;
 
-    playerKnockbackY *=
-        damping;
+        playerKnockbackY *=
+            damping;
 
-    if (
-        Math.abs(
-            playerKnockbackX
-        ) < 0.05
-    ) {
-        playerKnockbackX = 0;
-    }
+        if (
+            Math.abs(
+                playerKnockbackX
+            ) < 0.05
+        ) {
+            playerKnockbackX = 0;
+        }
 
-    if (
-        Math.abs(
-            playerKnockbackY
-        ) < 0.05
-    ) {
-        playerKnockbackY = 0;
+        if (
+            Math.abs(
+                playerKnockbackY
+            ) < 0.05
+        ) {
+            playerKnockbackY = 0;
+        }
     }
 
     const limitedX =
@@ -383,23 +583,13 @@ function updatePlayer(deltaTime = 1) {
             )
         );
 
-    if (
-        limitedX !==
-        player.x
-    ) {
-        player.x =
-            limitedX;
-
+    if (limitedX !== player.x) {
+        player.x = limitedX;
         playerKnockbackX = 0;
     }
 
-    if (
-        limitedY !==
-        player.y
-    ) {
-        player.y =
-            limitedY;
-
+    if (limitedY !== player.y) {
+        player.y = limitedY;
         playerKnockbackY = 0;
     }
 
@@ -408,25 +598,91 @@ function updatePlayer(deltaTime = 1) {
 // ============================================================================
 // DIBUJAR JUGADOR
 // ============================================================================
-
 function drawPlayer() {
+    const now =
+        performance.now();
+
+    const dashActive =
+        isPlayerDashing(now);
+
+    if (dashActive) {
+        ctx.save();
+
+        ctx.globalAlpha = 0.22;
+        ctx.fillStyle = "#9eeeff";
+
+        ctx.fillRect(
+            player.x -
+                playerDashDirectionX * 18,
+            player.y -
+                playerDashDirectionY * 18,
+            player.width,
+            player.height
+        );
+
+        ctx.restore();
+    }
 
     ctx.fillStyle =
-        player.color;
+        dashActive
+            ? "#dffbff"
+            : player.color;
 
     ctx.fillRect(
-
         player.x,
-
         player.y,
-
         player.width,
-
         player.height
     );
+
+    const cooldownProgress =
+        getPlayerDashCooldownProgress(
+            now
+        );
+
+    const barWidth =
+        player.width;
+
+    const barHeight = 4;
+
+    const barX =
+        player.x;
+
+    const barY =
+        player.y +
+        player.height +
+        5 <=
+        canvas.height - barHeight
+
+            ? player.y +
+                player.height +
+                5
+
+            : player.y - 9;
+
+    ctx.fillStyle =
+        "rgba(0, 0, 0, 0.65)";
+
+    ctx.fillRect(
+        barX,
+        barY,
+        barWidth,
+        barHeight
+    );
+
+    ctx.fillStyle =
+        cooldownProgress >= 1
+            ? "white"
+            : "#65d9ff";
+
+    ctx.fillRect(
+        barX,
+        barY,
+        barWidth *
+            cooldownProgress,
+        barHeight
+    );
 }
-
-
 // ============================================================================
 // DIBUJAR VIDA
 // ============================================================================

@@ -180,7 +180,71 @@ function isCircleCollidingWithRectangle(
         radius
     );
 }
+function isCircularAreaTouchingEntity(
+    areaX,
+    areaY,
+    areaRadius,
+    entity
+) {
+    if (
+        !Number.isFinite(areaX) ||
+        !Number.isFinite(areaY) ||
+        !Number.isFinite(areaRadius) ||
+        areaRadius < 0 ||
+        !entity
+    ) {
+        return false;
+    }
 
+    if (usesCircularHitbox(entity)) {
+        const entityCenter =
+            getEntityCenter(entity);
+
+        const dx =
+            entityCenter.x - areaX;
+
+        const dy =
+            entityCenter.y - areaY;
+
+        const combinedRadius =
+            areaRadius +
+            getEntityHitboxRadius(entity);
+
+        return (
+            dx * dx + dy * dy <=
+            combinedRadius * combinedRadius
+        );
+    }
+
+    const closestX =
+        Math.max(
+            entity.x,
+            Math.min(
+                areaX,
+                entity.x + entity.width
+            )
+        );
+
+    const closestY =
+        Math.max(
+            entity.y,
+            Math.min(
+                areaY,
+                entity.y + entity.height
+            )
+        );
+
+    const dx =
+        closestX - areaX;
+
+    const dy =
+        closestY - areaY;
+
+    return (
+        dx * dx + dy * dy <=
+        areaRadius * areaRadius
+    );
+}
 
 function areEntitiesColliding(
 
@@ -1184,7 +1248,6 @@ function getDistanceBetweenEntityCenters(
         dy
     );
 }
-
 function handleTraumatologistContact(
     enemy,
     colliding
@@ -1194,8 +1257,7 @@ function handleTraumatologistContact(
         enemy.traumaState === "charge" &&
         !enemy.attackHitThisStrike
     ) {
-        enemy.attackHitThisStrike =
-            true;
+        enemy.attackHitThisStrike = true;
 
         damagePlayerFromEntity(
             1,
@@ -1203,8 +1265,7 @@ function handleTraumatologistContact(
             11
         );
 
-        enemy.traumaState =
-            "recovery";
+        enemy.traumaState = "recovery";
 
         enemy.stateTimer =
             enemy.enraged
@@ -1221,15 +1282,18 @@ function handleTraumatologistContact(
         return;
     }
 
+    const enemyCenter =
+        getEntityCenter(enemy);
+
     if (
-        getDistanceBetweenEntityCenters(
-            player,
-            enemy
-        ) <=
-        enemy.currentSlamRadius
+        isCircularAreaTouchingEntity(
+            enemyCenter.x,
+            enemyCenter.y,
+            enemy.currentSlamRadius,
+            player
+        )
     ) {
-        enemy.slamHitThisAttack =
-            true;
+        enemy.slamHitThisAttack = true;
 
         damagePlayerFromEntity(
             1,
@@ -1238,7 +1302,6 @@ function handleTraumatologistContact(
         );
     }
 }
-
 function handleDirectorContact(
     enemy,
     colliding
@@ -1247,23 +1310,15 @@ function handleDirectorContact(
         enemy.pressureState === "active" &&
         !enemy.pressureHit
     ) {
-        const distance =
-            Math.hypot(
-                player.x +
-                    player.width / 2 -
-                    enemy.pressureTargetX,
-
-                player.y +
-                    player.height / 2 -
-                    enemy.pressureTargetY
-            );
-
         if (
-            distance <=
-            enemy.pressureRadius
+            isCircularAreaTouchingEntity(
+                enemy.pressureTargetX,
+                enemy.pressureTargetY,
+                enemy.pressureRadius,
+                player
+            )
         ) {
-            enemy.pressureHit =
-                true;
+            enemy.pressureHit = true;
 
             damagePlayer(
                 0.5,
@@ -1279,8 +1334,7 @@ function handleDirectorContact(
         enemy.directorState === "charge" &&
         !enemy.chargeHit
     ) {
-        enemy.chargeHit =
-            true;
+        enemy.chargeHit = true;
 
         damagePlayerFromEntity(
             1,
@@ -1288,8 +1342,7 @@ function handleDirectorContact(
             11
         );
 
-        enemy.directorState =
-            "recover";
+        enemy.directorState = "recover";
 
         enemy.stateTimer =
             enemy.recoverDuration;
@@ -1305,8 +1358,7 @@ function handleDirectorContact(
         performance.now();
 
     if (
-        now -
-            enemy.lastAttackTime >=
+        now - enemy.lastAttackTime >=
         enemy.attackCooldown
     ) {
         damagePlayerFromEntity(
@@ -1314,11 +1366,39 @@ function handleDirectorContact(
             enemy
         );
 
-        enemy.lastAttackTime =
-            now;
+        enemy.lastAttackTime = now;
     }
 }
+function handlePreparationAnesthesiaArea(
+    enemy
+) {
+    if (
+        !enemy.preparationAnesthesiologist ||
+        enemy.preparationState !== "zoneActive" ||
+        enemy.zoneHit
+    ) {
+        return;
+    }
 
+    if (
+        !isCircularAreaTouchingEntity(
+            enemy.zoneX,
+            enemy.zoneY,
+            enemy.zoneRadius,
+            player
+        )
+    ) {
+        return;
+    }
+
+    enemy.zoneHit = true;
+
+    movementDisabledUntil =
+        Math.max(
+            movementDisabledUntil,
+            performance.now() + 420
+        );
+}
 function checkPlayerDamage() {
     if (
         gameOver ||
@@ -1328,6 +1408,10 @@ function checkPlayerDamage() {
     }
 
     enemies.forEach((enemy) => {
+        handlePreparationAnesthesiaArea(
+            enemy
+        );
+
         const colliding =
             areEntitiesColliding(
                 player,
@@ -1374,8 +1458,7 @@ function checkPlayerDamage() {
             colliding &&
             !enemy.touchingPlayer
         ) {
-            enemy.touchingPlayer =
-                true;
+            enemy.touchingPlayer = true;
 
             damagePlayerFromEntity(
                 0.5,
@@ -1384,8 +1467,7 @@ function checkPlayerDamage() {
         }
 
         if (!colliding) {
-            enemy.touchingPlayer =
-                false;
+            enemy.touchingPlayer = false;
         }
     });
 
@@ -1406,8 +1488,7 @@ function checkPlayerDamage() {
         colliding &&
         !boss.touchingPlayer
     ) {
-        boss.touchingPlayer =
-            true;
+        boss.touchingPlayer = true;
 
         damagePlayerFromEntity(
             0.5,
@@ -1416,7 +1497,6 @@ function checkPlayerDamage() {
     }
 
     if (!colliding) {
-        boss.touchingPlayer =
-            false;
+        boss.touchingPlayer = false;
     }
 }
